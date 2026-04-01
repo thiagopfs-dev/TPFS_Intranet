@@ -244,7 +244,7 @@ export default function App() {
                   <img 
                     src={news[0]?.imageUrl || "https://picsum.photos/seed/hospital/1200/300"} 
                     alt="Banner" 
-                    className="w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-700"
+                    className="w-full h-full object-cover opacity-60 group-hover:scale-110 group-hover:-translate-y-2 transition-all duration-1000 ease-out"
                   />
                   <div className="absolute inset-0 p-10 flex flex-col justify-end text-white">
                     <h1 className="text-4xl font-bold mb-2">{news[0]?.title || "Bem-vindo ao Santa Casa Conecta"}</h1>
@@ -268,8 +268,8 @@ export default function App() {
                               href={s.link}
                               className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group text-center flex flex-col items-center h-full"
                             >
-                              <div className="w-16 h-16 bg-gray-50 rounded-xl flex items-center justify-center mb-4 group-hover:bg-red-50 transition-colors">
-                                <img src={s.iconUrl} alt={s.title} className="w-10 h-10 object-contain group-hover:scale-110 transition-transform" />
+                              <div className="w-24 h-24 bg-gray-50 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-red-50 transition-colors overflow-hidden">
+                                <img src={s.iconUrl} alt={s.title} className="w-full h-full object-contain p-2 group-hover:scale-110 transition-transform" />
                               </div>
                               <span className="text-xs font-bold text-gray-700 group-hover:text-[#c8323c] leading-tight">{s.title}</span>
                             </a>

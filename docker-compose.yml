@@ -7,6 +7,7 @@ services:
       - "3002:3000" # Porta externa 3002 mapeada para a interna 3000
     volumes:
       - ./public/uploads:/app/public/uploads # Persistência de fotos
+      - ./data:/app/data # Persistência do banco de dados SQLite
     environment:
       - NODE_ENV=production
       - JWT_SECRET=santa-casa-secret-key # Mude para uma chave segura no seu servidor
