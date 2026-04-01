@@ -1,0 +1,963 @@
+import { useState, useEffect, useMemo } from "react";
+import React from "react";
+import { 
+  Search, LogOut, Bell, Settings, Plus, Edit, Trash2, 
+  LayoutDashboard, FileText, User as UserIcon, LogIn,
+  BookOpen, Calendar, FileCheck, Menu, X, ChevronRight,
+  Home, Info, ShieldCheck, GripVertical, Save, Image as ImageIcon,
+  Link as LinkIcon, Type, Layers
+} from "lucide-react";
+import { motion, AnimatePresence, Reorder } from "motion/react";
+import { 
+  Shortcut, NewsItem, UserProfile, UserRole, 
+  SGQDocument, Article, HospitalEvent 
+} from "./types";
+import { cn } from "./lib/utils";
+
+type View = 'sistemas' | 'sgq' | 'artigos' | 'eventos' | 'admin';
+
+export default function App() {
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [shortcuts, setShortcuts] = useState<Shortcut[]>([]);
+  const [news, setNews] = useState<NewsItem[]>([]);
+  const [documents, setDocuments] = useState<SGQDocument[]>([]);
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [events, setEvents] = useState<HospitalEvent[]>([]);
+  const [availableCategories, setAvailableCategories] = useState<string[]>([]);
+  
+  const [activeView, setActiveView] = useState<View>('sistemas');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Auth check
+  useEffect(() => {
+    fetch("/api/me")
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        setUser(data);
+        setLoading(false);
+      });
+  }, []);
+
+  // Data fetching
+  useEffect(() => {
+    const fetchData = async () => {
+      const [sRes, nRes, dRes, aRes, eRes, cRes] = await Promise.all([
+        fetch("/api/shortcuts"),
+        fetch("/api/news"),
+        fetch("/api/documents"),
+        fetch("/api/articles"),
+        fetch("/api/events"),
+        fetch("/api/categories")
+      ]);
+      
+      if (sRes.ok) setShortcuts(await sRes.json());
+      if (nRes.ok) setNews(await nRes.json());
+      if (dRes.ok) setDocuments(await dRes.json());
+      if (aRes.ok) setArticles(await aRes.json());
+      if (eRes.ok) setEvents(await eRes.json());
+      if (cRes.ok) setAvailableCategories(await cRes.json());
+    };
+    fetchData();
+  }, []);
+
+  const handleLogout = async () => {
+    await fetch("/api/logout", { method: "POST" });
+    setUser(null);
+    setActiveView('sistemas');
+  };
+
+  const categories = useMemo(() => {
+    const cats: Record<string, Shortcut[]> = {};
+    // Sort shortcuts by order before grouping
+    const sortedShortcuts = [...shortcuts].sort((a, b) => (a.order || 0) - (b.order || 0));
+    
+    sortedShortcuts.forEach(s => {
+      if (!cats[s.category]) cats[s.category] = [];
+      cats[s.category].push(s);
+    });
+    return Object.entries(cats).map(([name, shortcuts]) => ({ name, shortcuts }));
+  }, [shortcuts]);
+
+  const handleReorder = async (newShortcuts: Shortcut[]) => {
+    setShortcuts(newShortcuts);
+    if (user?.role === 'admin') {
+      await fetch("/api/shortcuts/reorder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newOrder: newShortcuts.map(s => s.id) })
+      });
+    }
+  };
+
+  const refreshData = async () => {
+    const [sRes, nRes, dRes, aRes, eRes, cRes] = await Promise.all([
+      fetch("/api/shortcuts"),
+      fetch("/api/news"),
+      fetch("/api/documents"),
+      fetch("/api/articles"),
+      fetch("/api/events"),
+      fetch("/api/categories")
+    ]);
+    
+    if (sRes.ok) setShortcuts(await sRes.json());
+    if (nRes.ok) setNews(await nRes.json());
+    if (dRes.ok) setDocuments(await dRes.json());
+    if (aRes.ok) setArticles(await aRes.json());
+    if (eRes.ok) setEvents(await eRes.json());
+    if (cRes.ok) setAvailableCategories(await cRes.json());
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#c8323c]"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#f3f4f6] flex overflow-hidden">
+      {/* Sidebar */}
+      <aside className={cn(
+        "bg-[#1a1a1a] text-white transition-all duration-300 flex flex-col z-50",
+        isSidebarOpen ? "w-64" : "w-20"
+      )}>
+        <div className="p-6 flex items-center gap-3 border-b border-white/10">
+          <div className="w-8 h-8 bg-[#c8323c] rounded flex items-center justify-center shrink-0">
+            <ShieldCheck size={20} />
+          </div>
+          {isSidebarOpen && <span className="font-bold text-lg tracking-tight">SC Conecta</span>}
+        </div>
+
+        <nav className="flex-1 py-6 px-3 space-y-2">
+          <NavItem 
+            icon={<Home size={20} />} 
+            label="Sistemas" 
+            active={activeView === 'sistemas'} 
+            collapsed={!isSidebarOpen}
+            onClick={() => setActiveView('sistemas')}
+          />
+          <NavItem 
+            icon={<FileCheck size={20} />} 
+            label="Documentos SGQ" 
+            active={activeView === 'sgq'} 
+            collapsed={!isSidebarOpen}
+            onClick={() => setActiveView('sgq')}
+          />
+          <NavItem 
+            icon={<BookOpen size={20} />} 
+            label="Artigos" 
+            active={activeView === 'artigos'} 
+            collapsed={!isSidebarOpen}
+            onClick={() => setActiveView('artigos')}
+          />
+          <NavItem 
+            icon={<Calendar size={20} />} 
+            label="Eventos" 
+            active={activeView === 'eventos'} 
+            collapsed={!isSidebarOpen}
+            onClick={() => setActiveView('eventos')}
+          />
+          
+          {user && (user.role === 'admin' || user.role === 'editor') && (
+            <div className="pt-6 mt-6 border-t border-white/10">
+              <NavItem 
+                icon={<Settings size={20} />} 
+                label="Administração" 
+                active={activeView === 'admin'} 
+                collapsed={!isSidebarOpen}
+                onClick={() => setActiveView('admin')}
+              />
+            </div>
+          )}
+        </nav>
+
+        <div className="p-4 border-t border-white/10">
+          <button 
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="w-full p-2 hover:bg-white/5 rounded-lg flex items-center justify-center transition-colors"
+          >
+            {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header */}
+        <header className="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-8 shrink-0">
+          <h2 className="text-xl font-bold text-gray-800 capitalize">{activeView}</h2>
+          
+          <div className="flex items-center gap-4">
+            <div className="relative hidden md:block">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+              <input 
+                type="text" 
+                placeholder="Pesquisar..." 
+                className="pl-10 pr-4 py-2 bg-gray-100 border-transparent focus:bg-white focus:border-gray-200 rounded-full text-sm transition-all outline-none w-64"
+              />
+            </div>
+
+            {user ? (
+              <div className="flex items-center gap-4 pl-4 border-l border-gray-200">
+                <div className="text-right">
+                  <p className="text-sm font-bold text-gray-800">{user.displayName}</p>
+                  <p className="text-[10px] text-[#c8323c] font-bold uppercase tracking-widest">{user.role}</p>
+                </div>
+                <button 
+                  onClick={handleLogout}
+                  className="p-2 hover:bg-red-50 text-gray-400 hover:text-red-600 rounded-full transition-colors"
+                >
+                  <LogOut size={20} />
+                </button>
+              </div>
+            ) : (
+              <button 
+                onClick={() => setIsLoginOpen(true)}
+                className="flex items-center gap-2 px-5 py-2 bg-[#c8323c] text-white rounded-lg text-sm font-bold hover:bg-[#b02a33] transition-colors shadow-lg shadow-red-900/20"
+              >
+                <LogIn size={18} />
+                <span>Entrar</span>
+              </button>
+            )}
+          </div>
+        </header>
+
+        {/* View Content */}
+        <main className="flex-1 overflow-y-auto p-8 bg-[#f8f9fa]">
+          <AnimatePresence mode="wait">
+            {activeView === 'sistemas' && (
+              <motion.div 
+                key="sistemas"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="space-y-12"
+              >
+                {/* Banner */}
+                <div className="relative rounded-2xl overflow-hidden shadow-2xl aspect-[4/1] bg-gray-900">
+                  <img 
+                    src={news[0]?.imageUrl || "https://picsum.photos/seed/hospital/1200/300"} 
+                    alt="Banner" 
+                    className="w-full h-full object-cover opacity-60"
+                  />
+                  <div className="absolute inset-0 p-10 flex flex-col justify-end text-white">
+                    <h1 className="text-4xl font-bold mb-2">{news[0]?.title || "Bem-vindo ao Santa Casa Conecta"}</h1>
+                    <p className="text-lg opacity-90 max-w-2xl">{news[0]?.content || "Sua plataforma central de sistemas e informações."}</p>
+                  </div>
+                </div>
+
+                {/* Shortcuts */}
+                <div className="space-y-12">
+                  {categories.map((cat) => (
+                    <div key={cat.name} className="space-y-6">
+                      <h3 className="text-sm font-bold text-gray-400 uppercase tracking-[0.2em] flex items-center gap-3">
+                        <div className="h-[1px] flex-1 bg-gray-200"></div>
+                        {cat.name}
+                        <div className="h-[1px] flex-1 bg-gray-200"></div>
+                      </h3>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
+                        {cat.shortcuts.map((s) => (
+                          <a 
+                            key={s.id} 
+                            href={s.link}
+                            className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group text-center flex flex-col items-center"
+                          >
+                            <div className="w-16 h-16 bg-gray-50 rounded-xl flex items-center justify-center mb-4 group-hover:bg-red-50 transition-colors">
+                              <img src={s.iconUrl} alt={s.title} className="w-10 h-10 object-contain group-hover:scale-110 transition-transform" />
+                            </div>
+                            <span className="text-xs font-bold text-gray-700 group-hover:text-[#c8323c] leading-tight">{s.title}</span>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {activeView === 'sgq' && (
+              <motion.div 
+                key="sgq"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"
+              >
+                <table className="w-full text-left">
+                  <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                      <th className="px-6 py-4">Código</th>
+                      <th className="px-6 py-4">Título do Documento</th>
+                      <th className="px-6 py-4">Versão</th>
+                      <th className="px-6 py-4">Categoria</th>
+                      <th className="px-6 py-4 text-right">Ação</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {documents.map(doc => (
+                      <tr key={doc.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4 font-mono text-xs text-[#c8323c]">{doc.code}</td>
+                        <td className="px-6 py-4 font-bold text-sm text-gray-800">{doc.title}</td>
+                        <td className="px-6 py-4 text-xs text-gray-500">{doc.version}</td>
+                        <td className="px-6 py-4">
+                          <span className="px-2 py-1 bg-gray-100 text-gray-500 rounded text-[10px] font-bold uppercase">{doc.category}</span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <button className="text-[#c8323c] font-bold text-xs hover:underline">Visualizar</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </motion.div>
+            )}
+
+            {activeView === 'artigos' && (
+              <motion.div key="artigos" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {articles.map(article => (
+                  <div key={article.id} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                    <p className="text-[10px] font-bold text-[#c8323c] uppercase mb-2">{article.date}</p>
+                    <h3 className="text-lg font-bold text-gray-800 mb-3">{article.title}</h3>
+                    <p className="text-sm text-gray-500 mb-4 line-clamp-3">{article.summary}</p>
+                    <div className="flex items-center justify-between pt-4 border-t border-gray-50">
+                      <span className="text-xs text-gray-400">Por {article.author}</span>
+                      <button className="text-xs font-bold text-[#c8323c]">Ler mais</button>
+                    </div>
+                  </div>
+                ))}
+              </motion.div>
+            )}
+
+            {activeView === 'eventos' && (
+              <motion.div key="eventos" className="space-y-4">
+                {events.map(event => (
+                  <div key={event.id} className="bg-white rounded-2xl p-6 flex items-center gap-6 shadow-sm border border-gray-100">
+                    <div className="w-16 h-16 bg-red-50 rounded-xl flex flex-col items-center justify-center text-[#c8323c] shrink-0">
+                      <span className="text-lg font-bold leading-none">{event.date.split('-')[2]}</span>
+                      <span className="text-[10px] font-bold uppercase">ABR</span>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-gray-800">{event.title}</h3>
+                      <p className="text-sm text-gray-500">{event.description}</p>
+                      <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
+                        <span className="flex items-center gap-1"><Calendar size={12} /> {event.date}</span>
+                        <span className="flex items-center gap-1"><Home size={12} /> {event.location}</span>
+                      </div>
+                    </div>
+                    <button className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-bold text-gray-600 transition-colors">Inscrever-se</button>
+                  </div>
+                ))}
+              </motion.div>
+            )}
+
+            {activeView === 'admin' && user && (
+              <AdminPanel 
+                user={user} 
+                shortcuts={shortcuts} 
+                news={news} 
+                categories={availableCategories}
+                onRefresh={refreshData}
+                onReorder={handleReorder}
+              />
+            )}
+          </AnimatePresence>
+        </main>
+      </div>
+
+      {/* Login Modal */}
+      <AnimatePresence>
+        {isLoginOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setIsLoginOpen(false)}
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden"
+            >
+              <div className="p-10">
+                <div className="flex justify-center mb-8">
+                  <div className="w-16 h-16 bg-[#c8323c] rounded-2xl flex items-center justify-center shadow-lg shadow-red-900/20">
+                    <ShieldCheck size={32} className="text-white" />
+                  </div>
+                </div>
+                <h3 className="text-2xl font-bold text-center text-gray-800 mb-2">Santa Casa Conecta</h3>
+                <p className="text-center text-gray-500 text-sm mb-8">Entre com suas credenciais de colaborador</p>
+                
+                <LoginForm onSuccess={(u) => { setUser(u); setIsLoginOpen(false); }} />
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function NavItem({ icon, label, active, collapsed, onClick }: { icon: any, label: string, active: boolean, collapsed: boolean, onClick: () => void }) {
+  return (
+    <button 
+      onClick={onClick}
+      className={cn(
+        "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
+        active ? "bg-[#c8323c] text-white shadow-lg shadow-red-900/40" : "text-gray-400 hover:bg-white/5 hover:text-white"
+      )}
+    >
+      <div className={cn("shrink-0", active ? "text-white" : "group-hover:text-white")}>{icon}</div>
+      {!collapsed && <span className="text-sm font-bold tracking-wide">{label}</span>}
+      {active && !collapsed && <ChevronRight size={16} className="ml-auto opacity-60" />}
+    </button>
+  );
+}
+
+function LoginForm({ onSuccess }: { onSuccess: (u: UserProfile) => void }) {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
+      
+      if (res.ok) {
+        onSuccess(await res.json());
+      } else {
+        const data = await res.json();
+        setError(data.error || "Erro ao fazer login");
+      }
+    } catch (err) {
+      setError("Erro de conexão com o servidor");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Usuário</label>
+        <input 
+          type="text" 
+          value={username}
+          onChange={e => setUsername(e.target.value)}
+          className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none transition-all"
+          placeholder="Ex: thiago.pacheco"
+          required
+        />
+      </div>
+      <div>
+        <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Senha</label>
+        <input 
+          type="password" 
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+          className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none transition-all"
+          placeholder="••••••••"
+          required
+        />
+      </div>
+      
+      {error && <p className="text-xs text-red-500 font-bold text-center">{error}</p>}
+
+      <button 
+        type="submit"
+        disabled={loading}
+        className="w-full py-4 bg-[#c8323c] text-white rounded-xl font-bold shadow-lg shadow-red-900/20 hover:bg-[#b02a33] transition-all disabled:opacity-50 mt-4"
+      >
+        {loading ? "Entrando..." : "Acessar Portal"}
+      </button>
+    </form>
+  );
+}
+
+function AdminPanel({ user, shortcuts, news, categories, onRefresh, onReorder }: { 
+  user: UserProfile, 
+  shortcuts: Shortcut[], 
+  news: NewsItem[], 
+  categories: string[],
+  onRefresh: () => void,
+  onReorder: (s: Shortcut[]) => void
+}) {
+  const [tab, setTab] = useState<'shortcuts' | 'news' | 'categories'>('shortcuts');
+  const [editingShortcut, setEditingShortcut] = useState<Partial<Shortcut> | null>(null);
+  const [editingNews, setEditingNews] = useState<Partial<NewsItem> | null>(null);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [uploading, setUploading] = useState(false);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'shortcut' | 'news') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      if (res.ok) {
+        const { url } = await res.json();
+        if (type === 'shortcut' && editingShortcut) {
+          setEditingShortcut({ ...editingShortcut, iconUrl: url });
+        } else if (type === 'news' && editingNews) {
+          setEditingNews({ ...editingNews, imageUrl: url });
+        }
+      }
+    } catch (err) {
+      console.error("Erro no upload:", err);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleSaveShortcut = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingShortcut) return;
+    
+    const method = editingShortcut.id ? "PUT" : "POST";
+    const url = editingShortcut.id ? `/api/shortcuts/${editingShortcut.id}` : "/api/shortcuts";
+    
+    const res = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(editingShortcut)
+    });
+    
+    if (res.ok) {
+      setEditingShortcut(null);
+      onRefresh();
+    }
+  };
+
+  const handleDeleteShortcut = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir este atalho?")) return;
+    const res = await fetch(`/api/shortcuts/${id}`, { method: "DELETE" });
+    if (res.ok) onRefresh();
+  };
+
+  const handleSaveNews = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingNews) return;
+    
+    const method = editingNews.id ? "PUT" : "POST";
+    const url = editingNews.id ? `/api/news/${editingNews.id}` : "/api/news";
+    
+    const res = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(editingNews)
+    });
+    
+    if (res.ok) {
+      setEditingNews(null);
+      onRefresh();
+    }
+  };
+
+  const handleDeleteNews = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir esta notícia?")) return;
+    const res = await fetch(`/api/news/${id}`, { method: "DELETE" });
+    if (res.ok) onRefresh();
+  };
+
+  const handleAddCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCategoryName.trim()) return;
+    const res = await fetch("/api/categories", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newCategoryName.trim().toUpperCase() })
+    });
+    if (res.ok) {
+      setNewCategoryName('');
+      onRefresh();
+    }
+  };
+
+  const handleDeleteCategory = async (name: string) => {
+    if (!confirm(`Tem certeza que deseja excluir a categoria "${name}"?`)) return;
+    const res = await fetch(`/api/categories/${name}`, { method: "DELETE" });
+    if (res.ok) onRefresh();
+  };
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="space-y-8"
+    >
+      <div className="flex items-center gap-4 bg-white p-2 rounded-2xl shadow-sm border border-gray-100 w-fit overflow-x-auto max-w-full">
+        <button 
+          onClick={() => setTab('shortcuts')}
+          className={cn(
+            "px-6 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap",
+            tab === 'shortcuts' ? "bg-[#c8323c] text-white shadow-lg shadow-red-900/20" : "text-gray-400 hover:bg-gray-50"
+          )}
+        >
+          Atalhos
+        </button>
+        <button 
+          onClick={() => setTab('news')}
+          className={cn(
+            "px-6 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap",
+            tab === 'news' ? "bg-[#c8323c] text-white shadow-lg shadow-red-900/20" : "text-gray-400 hover:bg-gray-50"
+          )}
+        >
+          Comunicação
+        </button>
+        <button 
+          onClick={() => setTab('categories')}
+          className={cn(
+            "px-6 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap",
+            tab === 'categories' ? "bg-[#c8323c] text-white shadow-lg shadow-red-900/20" : "text-gray-400 hover:bg-gray-50"
+          )}
+        >
+          Categorias
+        </button>
+      </div>
+
+      {tab === 'shortcuts' && user.role === 'admin' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-gray-800">Gerenciar Atalhos</h2>
+              <p className="text-sm text-gray-500">Arraste para organizar a ordem de exibição</p>
+            </div>
+            <button 
+              onClick={() => setEditingShortcut({ title: '', iconUrl: '', link: '', category: categories[0] || 'SISTEMAS' })}
+              className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl text-sm font-bold hover:bg-green-700 transition-all shadow-lg shadow-green-900/20"
+            >
+              <Plus size={18} />
+              <span>Novo Atalho</span>
+            </button>
+          </div>
+
+          <Reorder.Group axis="y" values={shortcuts} onReorder={onReorder} className="space-y-3">
+            {shortcuts.map((s) => (
+              <Reorder.Item 
+                key={s.id} 
+                value={s}
+                className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4 cursor-grab active:cursor-grabbing hover:border-red-200 transition-colors"
+              >
+                <div className="text-gray-300"><GripVertical size={20} /></div>
+                <div className="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center shrink-0">
+                  <img src={s.iconUrl} alt={s.title} className="w-8 h-8 object-contain" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-bold text-gray-800 truncate">{s.title}</h4>
+                  <p className="text-xs text-gray-400 truncate">{s.link}</p>
+                </div>
+                <div className="px-3 py-1 bg-gray-100 rounded-lg text-[10px] font-bold text-gray-500 uppercase">{s.category}</div>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => setEditingShortcut(s)}
+                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                  >
+                    <Edit size={18} />
+                  </button>
+                  <button 
+                    onClick={() => handleDeleteShortcut(s.id)}
+                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              </Reorder.Item>
+            ))}
+          </Reorder.Group>
+        </div>
+      )}
+
+      {tab === 'news' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-gray-800">Gerenciar Comunicação</h2>
+              <p className="text-sm text-gray-500">Banners e avisos para os colaboradores</p>
+            </div>
+            <button 
+              onClick={() => setEditingNews({ title: '', content: '', date: new Date().toISOString().split('T')[0] })}
+              className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl text-sm font-bold hover:bg-green-700 transition-all shadow-lg shadow-green-900/20"
+            >
+              <Plus size={18} />
+              <span>Novo Aviso</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4">
+            {news.map((n) => (
+              <div key={n.id} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-start gap-6">
+                {n.imageUrl && (
+                  <div className="w-32 h-20 rounded-xl overflow-hidden shrink-0">
+                    <img src={n.imageUrl} alt={n.title} className="w-full h-full object-cover" />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h4 className="font-bold text-gray-800 truncate">{n.title}</h4>
+                    <span className="text-[10px] text-gray-400 font-bold">{n.date}</span>
+                  </div>
+                  <p className="text-sm text-gray-500 line-clamp-2">{n.content}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => setEditingNews(n)}
+                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                  >
+                    <Edit size={18} />
+                  </button>
+                  <button 
+                    onClick={() => handleDeleteNews(n.id)}
+                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab === 'categories' && user.role === 'admin' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-gray-800">Gerenciar Categorias</h2>
+              <p className="text-sm text-gray-500">Crie ou remova categorias de atalhos</p>
+            </div>
+          </div>
+
+          <form onSubmit={handleAddCategory} className="flex gap-4 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+            <input 
+              type="text" 
+              value={newCategoryName}
+              onChange={e => setNewCategoryName(e.target.value)}
+              placeholder="Nome da nova categoria..."
+              className="flex-1 px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none"
+              required
+            />
+            <button type="submit" className="px-6 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-all">
+              Adicionar
+            </button>
+          </form>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            {categories.map(cat => (
+              <div key={cat} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
+                <span className="font-bold text-gray-700 uppercase tracking-wide">{cat}</span>
+                <button 
+                  onClick={() => handleDeleteCategory(cat)}
+                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                >
+                  <Trash2 size={18} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Shortcut Edit Modal */}
+      <AnimatePresence>
+        {editingShortcut && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setEditingShortcut(null)}
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
+              className="relative bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden"
+            >
+              <form onSubmit={handleSaveShortcut} className="p-8 space-y-6">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xl font-bold text-gray-800">{editingShortcut.id ? 'Editar Atalho' : 'Novo Atalho'}</h3>
+                  <button type="button" onClick={() => setEditingShortcut(null)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase mb-2"><Type size={14} /> Título</label>
+                    <input 
+                      type="text" 
+                      value={editingShortcut.title}
+                      onChange={e => setEditingShortcut({...editingShortcut, title: e.target.value})}
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none"
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase mb-2"><Layers size={14} /> Categoria</label>
+                      <select 
+                        value={editingShortcut.category}
+                        onChange={e => setEditingShortcut({...editingShortcut, category: e.target.value})}
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none"
+                      >
+                        {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase mb-2"><ImageIcon size={14} /> Ícone (URL ou Upload)</label>
+                      <div className="space-y-2">
+                        <input 
+                          type="text" 
+                          value={editingShortcut.iconUrl}
+                          onChange={e => setEditingShortcut({...editingShortcut, iconUrl: e.target.value})}
+                          className="w-full px-4 py-2 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none text-sm"
+                          placeholder="https://..."
+                        />
+                        <div className="relative">
+                          <input 
+                            type="file" 
+                            accept="image/*"
+                            onChange={e => handleFileUpload(e, 'shortcut')}
+                            className="hidden"
+                            id="shortcut-upload"
+                          />
+                          <label 
+                            htmlFor="shortcut-upload"
+                            className="flex items-center justify-center gap-2 w-full py-2 border-2 border-dashed border-gray-200 rounded-xl text-xs font-bold text-gray-400 hover:border-[#c8323c] hover:text-[#c8323c] cursor-pointer transition-all"
+                          >
+                            {uploading ? "Enviando..." : "Ou clique para Upload"}
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase mb-2"><LinkIcon size={14} /> Link de Acesso</label>
+                    <input 
+                      type="text" 
+                      value={editingShortcut.link}
+                      onChange={e => setEditingShortcut({...editingShortcut, link: e.target.value})}
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none"
+                      placeholder="https://..."
+                      required
+                    />
+                  </div>
+                </div>
+
+                <button type="submit" className="w-full py-4 bg-[#c8323c] text-white rounded-xl font-bold shadow-lg shadow-red-900/20 hover:bg-[#b02a33] transition-all flex items-center justify-center gap-2">
+                  <Save size={20} />
+                  <span>Salvar Atalho</span>
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* News Edit Modal */}
+      <AnimatePresence>
+        {editingNews && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setEditingNews(null)}
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
+              className="relative bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden"
+            >
+              <form onSubmit={handleSaveNews} className="p-8 space-y-6">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xl font-bold text-gray-800">{editingNews.id ? 'Editar Aviso' : 'Novo Aviso'}</h3>
+                  <button type="button" onClick={() => setEditingNews(null)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Título</label>
+                    <input 
+                      type="text" 
+                      value={editingNews.title}
+                      onChange={e => setEditingNews({...editingNews, title: e.target.value})}
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Conteúdo</label>
+                    <textarea 
+                      value={editingNews.content}
+                      onChange={e => setEditingNews({...editingNews, content: e.target.value})}
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none min-h-[100px]"
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Data</label>
+                      <input 
+                        type="date" 
+                        value={editingNews.date}
+                        onChange={e => setEditingNews({...editingNews, date: e.target.value})}
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Imagem (URL ou Upload)</label>
+                      <div className="space-y-2">
+                        <input 
+                          type="text" 
+                          value={editingNews.imageUrl || ''}
+                          onChange={e => setEditingNews({...editingNews, imageUrl: e.target.value})}
+                          className="w-full px-4 py-2 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none text-sm"
+                          placeholder="https://..."
+                        />
+                        <div className="relative">
+                          <input 
+                            type="file" 
+                            accept="image/*"
+                            onChange={e => handleFileUpload(e, 'news')}
+                            className="hidden"
+                            id="news-upload"
+                          />
+                          <label 
+                            htmlFor="news-upload"
+                            className="flex items-center justify-center gap-2 w-full py-2 border-2 border-dashed border-gray-200 rounded-xl text-xs font-bold text-gray-400 hover:border-[#c8323c] hover:text-[#c8323c] cursor-pointer transition-all"
+                          >
+                            {uploading ? "Enviando..." : "Ou clique para Upload"}
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <button type="submit" className="w-full py-4 bg-[#c8323c] text-white rounded-xl font-bold shadow-lg shadow-red-900/20 hover:bg-[#b02a33] transition-all flex items-center justify-center gap-2">
+                  <Save size={20} />
+                  <span>Salvar Aviso</span>
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
