@@ -108,6 +108,18 @@ export default function App() {
     fetchData();
   }, []);
 
+  // Fetch admin data when user changes
+  useEffect(() => {
+    if (user) {
+      if (user.role === 'admin' || user.permissions?.users) {
+        fetch("/api/users").then(res => res.ok ? res.json() : []).then(setUsers);
+      }
+      if (user.role === 'admin' || user.permissions?.roles) {
+        fetch("/api/roles").then(res => res.ok ? res.json() : []).then(setRoles);
+      }
+    }
+  }, [user]);
+
   const handleLogout = async () => {
     await fetch("/api/logout", { method: "POST" });
     setUser(null);
