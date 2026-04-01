@@ -947,7 +947,10 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, catego
                       </select>
                     </div>
                     <div>
-                      <label className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase mb-2"><ImageIcon size={14} /> Ícone (URL ou Upload)</label>
+                      <label className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase mb-2">
+                        <ImageIcon size={14} /> Ícone (URL ou Upload)
+                        <span className="ml-auto text-[10px] text-gray-300 normal-case font-normal">Sugerido: 512x512px</span>
+                      </label>
                       <div className="space-y-2">
                         <input 
                           type="text" 
@@ -1048,7 +1051,10 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, catego
                       />
                     </div>
                     <div>
-                      <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Imagem (URL ou Upload)</label>
+                      <label className="flex items-center justify-between text-xs font-bold text-gray-400 uppercase mb-2 block">
+                        <span>Imagem (URL ou Upload)</span>
+                        <span className="text-[10px] text-gray-300 normal-case font-normal">Sugerido: 1200x300px (4:1)</span>
+                      </label>
                       <div className="space-y-2">
                         <input 
                           type="text" 
