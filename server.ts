@@ -22,8 +22,11 @@ db.exec(`
     name TEXT PRIMARY KEY,
     "order" INTEGER DEFAULT 0
   );
-  try { db.exec("ALTER TABLE categories ADD COLUMN \"order\" INTEGER DEFAULT 0;"); } catch (e) {}
+`);
 
+try { db.exec("ALTER TABLE categories ADD COLUMN \"order\" INTEGER DEFAULT 0;"); } catch (e) {}
+
+db.exec(`
   CREATE TABLE IF NOT EXISTS shortcuts (
     id TEXT PRIMARY KEY,
     title TEXT,
