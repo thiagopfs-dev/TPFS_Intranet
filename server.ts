@@ -123,10 +123,12 @@ if (userCount.count === 0) {
   insertExtension.run("e1", "Recepção Central", "1000", "Atendimento");
   insertExtension.run("e2", "Recursos Humanos", "1020", "Administrativo");
   insertExtension.run("e3", "TI - Suporte", "1050", "Tecnologia");
-
-  const insertSetting = db.prepare("INSERT INTO settings (key, value) VALUES (?, ?)");
-  insertSetting.run("logoUrl", "");
 }
+
+const ensureSettings = db.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)");
+ensureSettings.run("announcementMessage", "A intranet mudou, agora somos Santa Casa Conecta! Seu novo sistema para navegação e acesso aos sistemas da Santa Casa. Seja bem-vindo!");
+ensureSettings.run("announcementEnabled", "true");
+ensureSettings.run("logoUrl", "");
 
 const JWT_SECRET = "santa-casa-secret-key";
 

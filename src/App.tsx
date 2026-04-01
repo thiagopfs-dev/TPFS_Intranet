@@ -5,7 +5,7 @@ import {
   LayoutDashboard, FileText, User as UserIcon, LogIn,
   BookOpen, Calendar, FileCheck, Menu, X, ChevronRight,
   Home, Info, ShieldCheck, GripVertical, Save, Image as ImageIcon,
-  Link as LinkIcon, Type, Layers, Phone, PhoneCall
+  Link as LinkIcon, Type, Layers, Phone, PhoneCall, Megaphone
 } from "lucide-react";
 import { motion, AnimatePresence, Reorder } from "motion/react";
 import { 
@@ -37,6 +37,8 @@ export default function App() {
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   const [logoUrl, setLogoUrl] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [announcement, setAnnouncement] = useState({ message: "", enabled: false });
+  const [showAnnouncement, setShowAnnouncement] = useState(false);
   
   const [activeView, setActiveView] = useState<View>('sistemas');
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 768);
@@ -90,6 +92,15 @@ export default function App() {
       if (setRes.ok) {
         const settings = await setRes.json();
         if (settings.logoUrl) setLogoUrl(settings.logoUrl);
+        
+        const annMsg = settings.announcementMessage || "";
+        const annEnabled = settings.announcementEnabled === "true";
+        setAnnouncement({ message: annMsg, enabled: annEnabled });
+        
+        // Show announcement if enabled and not seen in this session
+        if (annEnabled && !sessionStorage.getItem('announcementSeen')) {
+          setShowAnnouncement(true);
+        }
       }
     };
     fetchData();
@@ -152,6 +163,10 @@ export default function App() {
     if (setRes.ok) {
       const settings = await setRes.json();
       if (settings.logoUrl) setLogoUrl(settings.logoUrl);
+      
+      const annMsg = settings.announcementMessage || "";
+      const annEnabled = settings.announcementEnabled === "true";
+      setAnnouncement({ message: annMsg, enabled: annEnabled });
     }
   };
 
@@ -576,6 +591,7 @@ export default function App() {
                 categories={availableCategories}
                 extensions={extensions}
                 logoUrl={logoUrl}
+                announcement={announcement}
                 onRefresh={refreshData}
                 onReorder={handleReorder}
                 onReorderCategories={async (newOrder) => {
@@ -622,6 +638,16 @@ export default function App() {
           )}
         </div>
       </div>
+
+      {/* Announcement Modal */}
+      <AnnouncementModal 
+        message={announcement.message} 
+        isOpen={showAnnouncement} 
+        onClose={() => {
+          setShowAnnouncement(false);
+          sessionStorage.setItem('announcementSeen', 'true');
+        }} 
+      />
 
       {/* Login Modal */}
       <AnimatePresence>
@@ -676,6 +702,46 @@ function NavItem({ icon, label, active, collapsed, onClick }: { icon: any, label
       {!collapsed && <span className="text-sm font-bold tracking-wide">{label}</span>}
       {active && !collapsed && <ChevronRight size={16} className="ml-auto opacity-60" />}
     </button>
+  );
+}
+
+function AnnouncementModal({ message, isOpen, onClose }: { message: string, isOpen: boolean, onClose: () => void }) {
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-black/60 backdrop-blur-md"
+            onClick={onClose}
+          />
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+            className="relative bg-white w-full max-w-lg rounded-[32px] shadow-2xl overflow-hidden"
+          >
+            <div className="p-8 md:p-12 text-center">
+              <div className="w-20 h-20 bg-red-50 rounded-3xl flex items-center justify-center mx-auto mb-8 text-[#c8323c]">
+                <Megaphone size={40} />
+              </div>
+              <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">Aviso Importante</h2>
+              <div className="text-gray-600 text-lg leading-relaxed mb-10 whitespace-pre-wrap">
+                {message}
+              </div>
+              <button 
+                onClick={onClose}
+                className="w-full py-4 bg-[#c8323c] text-white rounded-2xl font-bold text-lg shadow-xl shadow-red-900/20 hover:bg-[#b02a33] transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+              >
+                Entendi, vamos lá!
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -762,7 +828,7 @@ function LoginForm({ onSuccess }: { onSuccess: (u: UserProfile) => void }) {
   );
 }
 
-function AdminPanel({ user, shortcuts, news, documents, articles, events, users, categories, extensions, logoUrl, onRefresh, onReorder, onReorderCategories }: { 
+function AdminPanel({ user, shortcuts, news, documents, articles, events, users, categories, extensions, logoUrl, announcement, onRefresh, onReorder, onReorderCategories }: { 
   user: UserProfile, 
   shortcuts: Shortcut[], 
   news: NewsItem[], 
@@ -773,6 +839,7 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
   categories: string[],
   extensions: PhoneExtension[],
   logoUrl: string,
+  announcement: { message: string, enabled: boolean },
   onRefresh: () => void,
   onReorder: (s: Shortcut[]) => void,
   onReorderCategories: (c: string[]) => void
@@ -787,6 +854,29 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
   const [editingExtension, setEditingExtension] = useState<Partial<PhoneExtension> | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [annMsg, setAnnMsg] = useState(announcement.message);
+  const [annEnabled, setAnnEnabled] = useState(announcement.enabled);
+
+  useEffect(() => {
+    setAnnMsg(announcement.message);
+    setAnnEnabled(announcement.enabled);
+  }, [announcement]);
+
+  const handleSaveAnnouncement = async () => {
+    await Promise.all([
+      fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: "announcementMessage", value: annMsg })
+      }),
+      fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: "announcementEnabled", value: annEnabled ? "true" : "false" })
+      })
+    ]);
+    onRefresh();
+  };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'shortcut' | 'news' | 'logo') => {
     const file = e.target.files?.[0];
@@ -1812,6 +1902,48 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
                   </div>
                   <p className="text-[10px] text-gray-400">Tamanho recomendado: 512x512px. Formatos aceitos: PNG, JPG, SVG.</p>
                 </div>
+              </div>
+            </div>
+
+            <div className="pt-8 border-t border-gray-100 space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-[#c8323c]">
+                    <Megaphone size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-800">Aviso de Boas-vindas (Popup)</h3>
+                    <p className="text-xs text-gray-500">Exibe uma mensagem importante ao acessar o portal</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setAnnEnabled(!annEnabled)}
+                  className={cn(
+                    "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none",
+                    annEnabled ? "bg-[#c8323c]" : "bg-gray-200"
+                  )}
+                >
+                  <span className={cn(
+                    "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                    annEnabled ? "translate-x-6" : "translate-x-1"
+                  )} />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <textarea 
+                  value={annMsg}
+                  onChange={e => setAnnMsg(e.target.value)}
+                  placeholder="Escreva aqui a mensagem do aviso..."
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none min-h-[120px] text-sm"
+                />
+                <button 
+                  onClick={handleSaveAnnouncement}
+                  className="px-6 py-3 bg-[#c8323c] text-white rounded-xl font-bold text-sm shadow-lg shadow-red-900/20 hover:bg-[#b02a33] transition-all flex items-center gap-2"
+                >
+                  <Save size={18} />
+                  <span>Salvar Aviso</span>
+                </button>
               </div>
             </div>
           </div>
