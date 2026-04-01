@@ -369,6 +369,9 @@ export default function App() {
                 user={user} 
                 shortcuts={shortcuts} 
                 news={news} 
+                documents={documents}
+                articles={articles}
+                events={events}
                 categories={availableCategories}
                 onRefresh={refreshData}
                 onReorder={handleReorder}
@@ -499,17 +502,23 @@ function LoginForm({ onSuccess }: { onSuccess: (u: UserProfile) => void }) {
   );
 }
 
-function AdminPanel({ user, shortcuts, news, categories, onRefresh, onReorder }: { 
+function AdminPanel({ user, shortcuts, news, documents, articles, events, categories, onRefresh, onReorder }: { 
   user: UserProfile, 
   shortcuts: Shortcut[], 
   news: NewsItem[], 
+  documents: SGQDocument[],
+  articles: Article[],
+  events: HospitalEvent[],
   categories: string[],
   onRefresh: () => void,
   onReorder: (s: Shortcut[]) => void
 }) {
-  const [tab, setTab] = useState<'shortcuts' | 'news' | 'categories'>('shortcuts');
+  const [tab, setTab] = useState<'shortcuts' | 'news' | 'categories' | 'sgq' | 'articles' | 'events'>('shortcuts');
   const [editingShortcut, setEditingShortcut] = useState<Partial<Shortcut> | null>(null);
   const [editingNews, setEditingNews] = useState<Partial<NewsItem> | null>(null);
+  const [editingDocument, setEditingDocument] = useState<Partial<SGQDocument> | null>(null);
+  const [editingArticle, setEditingArticle] = useState<Partial<Article> | null>(null);
+  const [editingEvent, setEditingEvent] = useState<Partial<HospitalEvent> | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [uploading, setUploading] = useState(false);
 
@@ -591,6 +600,63 @@ function AdminPanel({ user, shortcuts, news, categories, onRefresh, onReorder }:
     if (res.ok) onRefresh();
   };
 
+  const handleSaveDocument = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingDocument) return;
+    const method = editingDocument.id ? "PUT" : "POST";
+    const url = editingDocument.id ? `/api/documents/${editingDocument.id}` : "/api/documents";
+    const res = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(editingDocument)
+    });
+    if (res.ok) { setEditingDocument(null); onRefresh(); }
+  };
+
+  const handleDeleteDocument = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir este documento?")) return;
+    const res = await fetch(`/api/documents/${id}`, { method: "DELETE" });
+    if (res.ok) onRefresh();
+  };
+
+  const handleSaveArticle = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingArticle) return;
+    const method = editingArticle.id ? "PUT" : "POST";
+    const url = editingArticle.id ? `/api/articles/${editingArticle.id}` : "/api/articles";
+    const res = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(editingArticle)
+    });
+    if (res.ok) { setEditingArticle(null); onRefresh(); }
+  };
+
+  const handleDeleteArticle = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir este artigo?")) return;
+    const res = await fetch(`/api/articles/${id}`, { method: "DELETE" });
+    if (res.ok) onRefresh();
+  };
+
+  const handleSaveEvent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingEvent) return;
+    const method = editingEvent.id ? "PUT" : "POST";
+    const url = editingEvent.id ? `/api/events/${editingEvent.id}` : "/api/events";
+    const res = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(editingEvent)
+    });
+    if (res.ok) { setEditingEvent(null); onRefresh(); }
+  };
+
+  const handleDeleteEvent = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir este evento?")) return;
+    const res = await fetch(`/api/events/${id}`, { method: "DELETE" });
+    if (res.ok) onRefresh();
+  };
+
   const handleAddCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCategoryName.trim()) return;
@@ -644,6 +710,33 @@ function AdminPanel({ user, shortcuts, news, categories, onRefresh, onReorder }:
           )}
         >
           Categorias
+        </button>
+        <button 
+          onClick={() => setTab('sgq')}
+          className={cn(
+            "px-6 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap",
+            tab === 'sgq' ? "bg-[#c8323c] text-white shadow-lg shadow-red-900/20" : "text-gray-400 hover:bg-gray-50"
+          )}
+        >
+          SGQ
+        </button>
+        <button 
+          onClick={() => setTab('articles')}
+          className={cn(
+            "px-6 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap",
+            tab === 'articles' ? "bg-[#c8323c] text-white shadow-lg shadow-red-900/20" : "text-gray-400 hover:bg-gray-50"
+          )}
+        >
+          Artigos
+        </button>
+        <button 
+          onClick={() => setTab('events')}
+          className={cn(
+            "px-6 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap",
+            tab === 'events' ? "bg-[#c8323c] text-white shadow-lg shadow-red-900/20" : "text-gray-400 hover:bg-gray-50"
+          )}
+        >
+          Eventos
         </button>
       </div>
 
@@ -993,6 +1086,260 @@ function AdminPanel({ user, shortcuts, news, categories, onRefresh, onReorder }:
           </div>
         )}
       </AnimatePresence>
+
+      {/* SGQ Edit Modal */}
+      <AnimatePresence>
+        {editingDocument && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setEditingDocument(null)}
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
+              className="relative bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden"
+            >
+              <form onSubmit={handleSaveDocument} className="p-8 space-y-6">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xl font-bold text-gray-800">{editingDocument.id ? 'Editar Documento' : 'Novo Documento'}</h3>
+                  <button type="button" onClick={() => setEditingDocument(null)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Título</label>
+                    <input type="text" value={editingDocument.title} onChange={e => setEditingDocument({...editingDocument, title: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none" required />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Categoria</label>
+                      <select value={editingDocument.category} onChange={e => setEditingDocument({...editingDocument, category: e.target.value as any})} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none">
+                        <option value="MANUAL">Manual</option>
+                        <option value="POP">POP</option>
+                        <option value="INSTRUÇÃO">Instrução</option>
+                        <option value="FORMULÁRIO">Formulário</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Versão</label>
+                      <input type="text" value={editingDocument.version} onChange={e => setEditingDocument({...editingDocument, version: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none" required />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">URL do Documento</label>
+                    <input type="text" value={editingDocument.url} onChange={e => setEditingDocument({...editingDocument, url: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none" placeholder="https://..." required />
+                  </div>
+                </div>
+                <button type="submit" className="w-full py-4 bg-[#c8323c] text-white rounded-xl font-bold shadow-lg shadow-red-900/20 hover:bg-[#b02a33] transition-all flex items-center justify-center gap-2">
+                  <Save size={20} />
+                  <span>Salvar Documento</span>
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Article Edit Modal */}
+      <AnimatePresence>
+        {editingArticle && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setEditingArticle(null)}
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
+              className="relative bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden"
+            >
+              <form onSubmit={handleSaveArticle} className="p-8 space-y-6">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xl font-bold text-gray-800">{editingArticle.id ? 'Editar Artigo' : 'Novo Artigo'}</h3>
+                  <button type="button" onClick={() => setEditingArticle(null)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Título</label>
+                    <input type="text" value={editingArticle.title} onChange={e => setEditingArticle({...editingArticle, title: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none" required />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Resumo</label>
+                    <input type="text" value={editingArticle.excerpt} onChange={e => setEditingArticle({...editingArticle, excerpt: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none" required />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Conteúdo (Markdown)</label>
+                    <textarea value={editingArticle.content} onChange={e => setEditingArticle({...editingArticle, content: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none min-h-[200px]" required />
+                  </div>
+                </div>
+                <button type="submit" className="w-full py-4 bg-[#c8323c] text-white rounded-xl font-bold shadow-lg shadow-red-900/20 hover:bg-[#b02a33] transition-all flex items-center justify-center gap-2">
+                  <Save size={20} />
+                  <span>Salvar Artigo</span>
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Event Edit Modal */}
+      <AnimatePresence>
+        {editingEvent && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setEditingEvent(null)}
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
+              className="relative bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden"
+            >
+              <form onSubmit={handleSaveEvent} className="p-8 space-y-6">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xl font-bold text-gray-800">{editingEvent.id ? 'Editar Evento' : 'Novo Evento'}</h3>
+                  <button type="button" onClick={() => setEditingEvent(null)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Título</label>
+                    <input type="text" value={editingEvent.title} onChange={e => setEditingEvent({...editingEvent, title: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none" required />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Data</label>
+                      <input type="date" value={editingEvent.date} onChange={e => setEditingEvent({...editingEvent, date: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none" required />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Hora</label>
+                      <input type="time" value={editingEvent.time} onChange={e => setEditingEvent({...editingEvent, time: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none" required />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Local</label>
+                    <input type="text" value={editingEvent.location} onChange={e => setEditingEvent({...editingEvent, location: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none" required />
+                  </div>
+                </div>
+                <button type="submit" className="w-full py-4 bg-[#c8323c] text-white rounded-xl font-bold shadow-lg shadow-red-900/20 hover:bg-[#b02a33] transition-all flex items-center justify-center gap-2">
+                  <Save size={20} />
+                  <span>Salvar Evento</span>
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {tab === 'sgq' && user.role === 'admin' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-gray-800">Gerenciar Documentos SGQ</h2>
+              <p className="text-sm text-gray-500">Adicione ou remova documentos do sistema</p>
+            </div>
+            <button 
+              onClick={() => setEditingDocument({ title: '', category: 'MANUAL', url: '', version: '1.0', date: new Date().toISOString().split('T')[0] })}
+              className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl text-sm font-bold hover:bg-green-700 transition-all shadow-lg shadow-green-900/20"
+            >
+              <Plus size={18} />
+              <span>Novo Documento</span>
+            </button>
+          </div>
+          <div className="grid grid-cols-1 gap-4">
+            {documents.map(doc => (
+              <div key={doc.id} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center">
+                    <FileCheck size={20} />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-gray-800">{doc.title}</h4>
+                    <p className="text-xs text-gray-400 uppercase font-bold">{doc.category} • v{doc.version}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setEditingDocument(doc)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Edit size={18} /></button>
+                  <button onClick={() => handleDeleteDocument(doc.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18} /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab === 'articles' && (user.role === 'admin' || user.role === 'editor') && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-gray-800">Gerenciar Artigos</h2>
+              <p className="text-sm text-gray-500">Publicações e informativos técnicos</p>
+            </div>
+            <button 
+              onClick={() => setEditingArticle({ title: '', excerpt: '', content: '', author: user.displayName, date: new Date().toISOString().split('T')[0], category: 'SAÚDE' })}
+              className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl text-sm font-bold hover:bg-green-700 transition-all shadow-lg shadow-green-900/20"
+            >
+              <Plus size={18} />
+              <span>Novo Artigo</span>
+            </button>
+          </div>
+          <div className="grid grid-cols-1 gap-4">
+            {articles.map(art => (
+              <div key={art.id} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-purple-50 text-purple-600 rounded-lg flex items-center justify-center">
+                    <BookOpen size={20} />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-gray-800">{art.title}</h4>
+                    <p className="text-xs text-gray-400 font-bold">{art.author} • {art.date}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setEditingArticle(art)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Edit size={18} /></button>
+                  <button onClick={() => handleDeleteArticle(art.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18} /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab === 'events' && (user.role === 'admin' || user.role === 'editor') && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-gray-800">Gerenciar Eventos</h2>
+              <p className="text-sm text-gray-500">Calendário de atividades do hospital</p>
+            </div>
+            <button 
+              onClick={() => setEditingEvent({ title: '', description: '', date: new Date().toISOString().split('T')[0], time: '08:00', location: '', category: 'TREINAMENTO' })}
+              className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl text-sm font-bold hover:bg-green-700 transition-all shadow-lg shadow-green-900/20"
+            >
+              <Plus size={18} />
+              <span>Novo Evento</span>
+            </button>
+          </div>
+          <div className="grid grid-cols-1 gap-4">
+            {events.map(ev => (
+              <div key={ev.id} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-orange-50 text-orange-600 rounded-lg flex items-center justify-center">
+                    <Calendar size={20} />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-gray-800">{ev.title}</h4>
+                    <p className="text-xs text-gray-400 font-bold">{ev.date} às {ev.time} • {ev.location}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setEditingEvent(ev)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Edit size={18} /></button>
+                  <button onClick={() => handleDeleteEvent(ev.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18} /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 }

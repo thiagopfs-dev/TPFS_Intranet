@@ -33,19 +33,20 @@ export interface NewsItem {
 export interface SGQDocument {
   id: string;
   title: string;
-  code: string;
+  category: 'MANUAL' | 'POP' | 'INSTRUÇÃO' | 'FORMULÁRIO';
   version: string;
   url: string;
-  category: string;
+  date: string;
 }
 
 export interface Article {
   id: string;
   title: string;
-  summary: string;
+  excerpt: string;
   content: string;
   author: string;
   date: string;
+  category: string;
 }
 
 export interface HospitalEvent {
@@ -53,5 +54,7 @@ export interface HospitalEvent {
   title: string;
   description: string;
   date: string;
+  time: string;
   location: string;
+  category: string;
 }
