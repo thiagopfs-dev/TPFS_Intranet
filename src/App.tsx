@@ -260,16 +260,28 @@ export default function App() {
                       </h3>
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
                         {cat.shortcuts.map((s) => (
-                          <a 
-                            key={s.id} 
-                            href={s.link}
-                            className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group text-center flex flex-col items-center"
-                          >
-                            <div className="w-16 h-16 bg-gray-50 rounded-xl flex items-center justify-center mb-4 group-hover:bg-red-50 transition-colors">
-                              <img src={s.iconUrl} alt={s.title} className="w-10 h-10 object-contain group-hover:scale-110 transition-transform" />
-                            </div>
-                            <span className="text-xs font-bold text-gray-700 group-hover:text-[#c8323c] leading-tight">{s.title}</span>
-                          </a>
+                          <div key={s.id} className="relative group/card">
+                            <a 
+                              href={s.link}
+                              className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group text-center flex flex-col items-center h-full"
+                            >
+                              <div className="w-16 h-16 bg-gray-50 rounded-xl flex items-center justify-center mb-4 group-hover:bg-red-50 transition-colors">
+                                <img src={s.iconUrl} alt={s.title} className="w-10 h-10 object-contain group-hover:scale-110 transition-transform" />
+                              </div>
+                              <span className="text-xs font-bold text-gray-700 group-hover:text-[#c8323c] leading-tight">{s.title}</span>
+                            </a>
+                            {user?.role === 'admin' && (
+                              <button 
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  setActiveView('admin');
+                                }}
+                                className="absolute -top-2 -right-2 p-2 bg-white rounded-full shadow-lg border border-gray-100 text-blue-600 opacity-0 group-hover/card:opacity-100 transition-opacity z-10 hover:bg-blue-50"
+                              >
+                                <Edit size={14} />
+                              </button>
+                            )}
+                          </div>
                         ))}
                       </div>
                     </div>
@@ -704,8 +716,11 @@ function AdminPanel({ user, shortcuts, news, categories, onRefresh, onReorder }:
           </div>
 
           <div className="grid grid-cols-1 gap-4">
-            {news.map((n) => (
-              <div key={n.id} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-start gap-6">
+            {news.map((n, index) => (
+              <div key={n.id} className={cn(
+                "bg-white p-6 rounded-2xl border shadow-sm flex items-start gap-6 transition-all",
+                index === 0 ? "border-red-200 ring-1 ring-red-100" : "border-gray-100"
+              )}>
                 {n.imageUrl && (
                   <div className="w-32 h-20 rounded-xl overflow-hidden shrink-0">
                     <img src={n.imageUrl} alt={n.title} className="w-full h-full object-cover" />
@@ -713,12 +728,32 @@ function AdminPanel({ user, shortcuts, news, categories, onRefresh, onReorder }:
                 )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
+                    {index === 0 && (
+                      <span className="px-2 py-0.5 bg-red-100 text-[#c8323c] text-[10px] font-bold rounded uppercase">Banner Principal</span>
+                    )}
                     <h4 className="font-bold text-gray-800 truncate">{n.title}</h4>
                     <span className="text-[10px] text-gray-400 font-bold">{n.date}</span>
                   </div>
                   <p className="text-sm text-gray-500 line-clamp-2">{n.content}</p>
                 </div>
                 <div className="flex items-center gap-2">
+                  {index !== 0 && (
+                    <button 
+                      onClick={async () => {
+                        const newOrder = [n.id, ...news.filter(item => item.id !== n.id).map(item => item.id)];
+                        const res = await fetch("/api/news/reorder", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ newOrder })
+                        });
+                        if (res.ok) onRefresh();
+                      }}
+                      className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                      title="Definir como Banner Principal"
+                    >
+                      <Layers size={18} />
+                    </button>
+                  )}
                   <button 
                     onClick={() => setEditingNews(n)}
                     className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"

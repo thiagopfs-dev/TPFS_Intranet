@@ -93,7 +93,12 @@ async function startServer() {
     const user = users.find(u => u.username === username);
     if (user && bcrypt.compareSync(password, user.password)) {
       const token = jwt.sign({ id: user.id, username: user.username, role: user.role, displayName: user.displayName }, JWT_SECRET, { expiresIn: "1d" });
-      res.cookie("token", token, { httpOnly: true, secure: true, sameSite: 'none' });
+      res.cookie("token", token, { 
+        httpOnly: true, 
+        secure: process.env.NODE_ENV === 'production', // Only secure in production (requires HTTPS)
+        sameSite: 'lax',
+        maxAge: 24 * 60 * 60 * 1000 // 1 day
+      });
       const { password: _, ...userWithoutPassword } = user;
       res.json(userWithoutPassword);
     } else {
@@ -102,7 +107,11 @@ async function startServer() {
   });
 
   app.post("/api/logout", (req, res) => {
-    res.clearCookie("token");
+    res.clearCookie("token", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax'
+    });
     res.json({ success: true });
   });
 
@@ -208,6 +217,14 @@ async function startServer() {
     } else {
       res.status(404).json({ error: "Não encontrado" });
     }
+  });
+
+  app.post("/api/news/reorder", authenticate, (req: any, res) => {
+    if (req.user.role !== 'admin' && req.user.role !== 'editor') return res.status(403).json({ error: "Acesso negado" });
+    const { newOrder } = req.body;
+    const reorderedNews = newOrder.map((id: string) => news.find(n => n.id === id)).filter(Boolean);
+    news = reorderedNews;
+    res.json(news);
   });
 
   app.delete("/api/news/:id", authenticate, (req: any, res) => {
