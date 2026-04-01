@@ -1,0 +1,21 @@
+{
+  "name": "Santa Casa Conecta",
+  "short_name": "SC Conecta",
+  "description": "Portal de Sistemas e Comunicação Interna da Santa Casa",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#c8323c",
+  "icons": [
+    {
+      "src": "https://picsum.photos/seed/sc-conecta/192/192",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://picsum.photos/seed/sc-conecta/512/512",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

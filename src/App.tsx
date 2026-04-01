@@ -35,11 +35,25 @@ export default function App() {
   const [extensions, setExtensions] = useState<PhoneExtension[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
+  const [logoUrl, setLogoUrl] = useState<string>("");
   
   const [activeView, setActiveView] = useState<View>('sistemas');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 768);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  // Responsive sidebar
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth <= 768) {
+        setIsSidebarOpen(false);
+      } else {
+        setIsSidebarOpen(true);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Auth check
   useEffect(() => {
@@ -54,14 +68,15 @@ export default function App() {
   // Data fetching
   useEffect(() => {
     const fetchData = async () => {
-      const [sRes, nRes, dRes, aRes, eRes, cRes, exRes] = await Promise.all([
+      const [sRes, nRes, dRes, aRes, eRes, cRes, exRes, setRes] = await Promise.all([
         fetch("/api/shortcuts"),
         fetch("/api/news"),
         fetch("/api/documents"),
         fetch("/api/articles"),
         fetch("/api/events"),
         fetch("/api/categories"),
-        fetch("/api/extensions")
+        fetch("/api/extensions"),
+        fetch("/api/settings")
       ]);
       
       if (sRes.ok) setShortcuts(await sRes.json());
@@ -71,6 +86,10 @@ export default function App() {
       if (eRes.ok) setEvents(await eRes.json());
       if (cRes.ok) setAvailableCategories(await cRes.json());
       if (exRes.ok) setExtensions(await exRes.json());
+      if (setRes.ok) {
+        const settings = await setRes.json();
+        if (settings.logoUrl) setLogoUrl(settings.logoUrl);
+      }
     };
     fetchData();
   }, []);
@@ -109,7 +128,7 @@ export default function App() {
   };
 
   const refreshData = async () => {
-    const [sRes, nRes, dRes, aRes, eRes, cRes, uRes, exRes] = await Promise.all([
+    const [sRes, nRes, dRes, aRes, eRes, cRes, uRes, exRes, setRes] = await Promise.all([
       fetch("/api/shortcuts"),
       fetch("/api/news"),
       fetch("/api/documents"),
@@ -117,7 +136,8 @@ export default function App() {
       fetch("/api/events"),
       fetch("/api/categories"),
       fetch("/api/users"),
-      fetch("/api/extensions")
+      fetch("/api/extensions"),
+      fetch("/api/settings")
     ]);
     
     if (sRes.ok) setShortcuts(await sRes.json());
@@ -128,6 +148,10 @@ export default function App() {
     if (cRes.ok) setAvailableCategories(await cRes.json());
     if (uRes.ok) setUsers(await uRes.json());
     if (exRes.ok) setExtensions(await exRes.json());
+    if (setRes.ok) {
+      const settings = await setRes.json();
+      if (settings.logoUrl) setLogoUrl(settings.logoUrl);
+    }
   };
 
   if (loading) {
@@ -139,17 +163,21 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f3f4f6] flex overflow-hidden">
+    <div className="min-h-screen bg-[#f3f4f6] flex overflow-hidden relative">
       {/* Sidebar */}
       <aside className={cn(
-        "bg-[#1a1a1a] text-white transition-all duration-300 flex flex-col z-50",
-        isSidebarOpen ? "w-64" : "w-20"
+        "bg-[#1a1a1a] text-white transition-all duration-300 flex flex-col z-50 fixed md:relative h-full overflow-hidden",
+        isSidebarOpen ? "w-64 translate-x-0" : "w-64 md:w-20 -translate-x-full md:translate-x-0"
       )}>
-        <div className="p-6 flex items-center gap-3 border-b border-white/10">
-          <div className="w-8 h-8 bg-[#c8323c] rounded flex items-center justify-center shrink-0">
-            <ShieldCheck size={20} />
-          </div>
-          {isSidebarOpen && <span className="font-bold text-lg tracking-tight">SC Conecta</span>}
+        <div className="p-6 flex items-center gap-3 border-b border-white/10 overflow-hidden">
+          {logoUrl ? (
+            <img src={logoUrl} alt="Logo" className="w-8 h-8 object-contain shrink-0" />
+          ) : (
+            <div className="w-8 h-8 bg-[#c8323c] rounded flex items-center justify-center shrink-0">
+              <ShieldCheck size={20} />
+            </div>
+          )}
+          {isSidebarOpen && <span className="font-bold text-lg tracking-tight whitespace-nowrap">SC Conecta</span>}
         </div>
 
         <nav className="flex-1 py-6 px-3 space-y-2">
@@ -202,7 +230,7 @@ export default function App() {
           )}
         </nav>
 
-        <div className="p-4 border-t border-white/10">
+        <div className="p-4 border-t border-white/10 hidden md:block">
           <button 
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             className="w-full p-2 hover:bg-white/5 rounded-lg flex items-center justify-center transition-colors"
@@ -212,11 +240,27 @@ export default function App() {
         </div>
       </aside>
 
+      {/* Mobile Overlay */}
+      {isSidebarOpen && window.innerWidth <= 768 && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden pb-16 md:pb-0">
         {/* Header */}
-        <header className="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-8 shrink-0">
-          <h2 className="text-xl font-bold text-gray-800">{viewTitles[activeView]}</h2>
+        <header className="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-4 md:px-8 shrink-0">
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setIsSidebarOpen(true)}
+              className="p-2 hover:bg-gray-100 rounded-lg md:hidden"
+            >
+              <Menu size={20} />
+            </button>
+            <h2 className="text-lg md:text-xl font-bold text-gray-800">{viewTitles[activeView]}</h2>
+          </div>
           
           <div className="flex items-center gap-4">
             <div className="relative hidden md:block">
@@ -254,7 +298,7 @@ export default function App() {
         </header>
 
         {/* View Content */}
-        <main className="flex-1 overflow-y-auto p-8 bg-[#f8f9fa]">
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 bg-[#f8f9fa]">
           <AnimatePresence mode="wait">
             {activeView === 'sistemas' && (
               <motion.div 
@@ -265,15 +309,15 @@ export default function App() {
                 className="space-y-12"
               >
                 {/* Banner */}
-                <div className="relative rounded-2xl overflow-hidden shadow-2xl aspect-[4/1] bg-gray-900 group">
+                <div className="relative rounded-2xl overflow-hidden shadow-2xl aspect-[2/1] md:aspect-[4/1] bg-gray-900 group">
                   <img 
                     src={news[0]?.imageUrl || "https://picsum.photos/seed/hospital/1200/300"} 
                     alt="Banner" 
                     className="w-full h-full object-cover opacity-60 group-hover:scale-110 group-hover:-translate-y-2 transition-all duration-1000 ease-out"
                   />
-                  <div className="absolute inset-0 p-10 flex flex-col justify-end text-white">
-                    <h1 className="text-4xl font-bold mb-2">{news[0]?.title || "Bem-vindo ao Santa Casa Conecta"}</h1>
-                    <p className="text-lg opacity-90 max-w-2xl">{news[0]?.content || "Sua plataforma central de sistemas e informações."}</p>
+                  <div className="absolute inset-0 p-6 md:p-10 flex flex-col justify-end text-white">
+                    <h1 className="text-2xl md:text-4xl font-bold mb-2">{news[0]?.title || "Bem-vindo ao Santa Casa Conecta"}</h1>
+                    <p className="text-sm md:text-lg opacity-90 max-w-2xl line-clamp-2 md:line-clamp-none">{news[0]?.content || "Sua plataforma central de sistemas e informações."}</p>
                   </div>
                 </div>
 
@@ -333,8 +377,8 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                  <table className="w-full text-left">
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
+                  <table className="w-full text-left min-w-[600px] md:min-w-0">
                     <thead className="bg-gray-50 border-b border-gray-100">
                       <tr className="text-xs font-bold text-gray-400 uppercase tracking-wider">
                         <th className="px-6 py-4">Nome / Setor</th>
@@ -446,6 +490,7 @@ export default function App() {
                 users={users}
                 categories={availableCategories}
                 extensions={extensions}
+                logoUrl={logoUrl}
                 onRefresh={refreshData}
                 onReorder={handleReorder}
                 onReorderCategories={async (newOrder) => {
@@ -460,6 +505,37 @@ export default function App() {
             )}
           </AnimatePresence>
         </main>
+
+        {/* Mobile Bottom Navigation */}
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 h-16 flex items-center justify-around px-2 md:hidden z-50">
+          <MobileNavItem 
+            icon={<Home size={24} />} 
+            active={activeView === 'sistemas'} 
+            onClick={() => setActiveView('sistemas')}
+          />
+          <MobileNavItem 
+            icon={<Phone size={24} />} 
+            active={activeView === 'ramais'} 
+            onClick={() => setActiveView('ramais')}
+          />
+          <MobileNavItem 
+            icon={<FileCheck size={24} />} 
+            active={activeView === 'sgq'} 
+            onClick={() => setActiveView('sgq')}
+          />
+          <MobileNavItem 
+            icon={<BookOpen size={24} />} 
+            active={activeView === 'artigos'} 
+            onClick={() => setActiveView('artigos')}
+          />
+          {user && (user.role === 'admin' || user.role === 'editor') && (
+            <MobileNavItem 
+              icon={<Settings size={24} />} 
+              active={activeView === 'admin'} 
+              onClick={() => setActiveView('admin')}
+            />
+          )}
+        </div>
       </div>
 
       {/* Login Modal */}
@@ -510,6 +586,20 @@ function NavItem({ icon, label, active, collapsed, onClick }: { icon: any, label
       <div className={cn("shrink-0", active ? "text-white" : "group-hover:text-white")}>{icon}</div>
       {!collapsed && <span className="text-sm font-bold tracking-wide">{label}</span>}
       {active && !collapsed && <ChevronRight size={16} className="ml-auto opacity-60" />}
+    </button>
+  );
+}
+
+function MobileNavItem({ icon, active, onClick }: { icon: any, active: boolean, onClick: () => void }) {
+  return (
+    <button 
+      onClick={onClick}
+      className={cn(
+        "flex flex-col items-center justify-center p-2 rounded-xl transition-all duration-200",
+        active ? "bg-[#c8323c] text-white shadow-lg shadow-red-900/20" : "text-gray-400"
+      )}
+    >
+      {icon}
     </button>
   );
 }
@@ -583,7 +673,7 @@ function LoginForm({ onSuccess }: { onSuccess: (u: UserProfile) => void }) {
   );
 }
 
-function AdminPanel({ user, shortcuts, news, documents, articles, events, users, categories, extensions, onRefresh, onReorder, onReorderCategories }: { 
+function AdminPanel({ user, shortcuts, news, documents, articles, events, users, categories, extensions, logoUrl, onRefresh, onReorder, onReorderCategories }: { 
   user: UserProfile, 
   shortcuts: Shortcut[], 
   news: NewsItem[], 
@@ -593,11 +683,12 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
   users: UserProfile[],
   categories: string[],
   extensions: PhoneExtension[],
+  logoUrl: string,
   onRefresh: () => void,
   onReorder: (s: Shortcut[]) => void,
   onReorderCategories: (c: string[]) => void
 }) {
-  const [tab, setTab] = useState<'shortcuts' | 'news' | 'categories' | 'sgq' | 'articles' | 'events' | 'users' | 'ramais'>('shortcuts');
+  const [tab, setTab] = useState<'shortcuts' | 'news' | 'categories' | 'sgq' | 'articles' | 'events' | 'users' | 'ramais' | 'settings'>('shortcuts');
   const [editingShortcut, setEditingShortcut] = useState<Partial<Shortcut> | null>(null);
   const [editingNews, setEditingNews] = useState<Partial<NewsItem> | null>(null);
   const [editingDocument, setEditingDocument] = useState<Partial<SGQDocument> | null>(null);
@@ -608,7 +699,7 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
   const [newCategoryName, setNewCategoryName] = useState('');
   const [uploading, setUploading] = useState(false);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'shortcut' | 'news') => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'shortcut' | 'news' | 'logo') => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -627,6 +718,8 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
           setEditingShortcut({ ...editingShortcut, iconUrl: url });
         } else if (type === 'news' && editingNews) {
           setEditingNews({ ...editingNews, imageUrl: url });
+        } else if (type === 'logo') {
+          handleSaveLogo(url);
         }
       }
     } catch (err) {
@@ -783,6 +876,15 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
     if (res.ok) { setEditingExtension(null); onRefresh(); }
   };
 
+  const handleSaveLogo = async (url: string) => {
+    await fetch("/api/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key: "logoUrl", value: url })
+    });
+    onRefresh();
+  };
+
   const handleDeleteExtension = async (id: string) => {
     if (!confirm("Tem certeza que deseja excluir este ramal?")) return;
     const res = await fetch(`/api/extensions/${id}`, { method: "DELETE" });
@@ -879,6 +981,17 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
         >
           Eventos
         </button>
+        {user.role === 'admin' && (
+          <button 
+            onClick={() => setTab('settings')}
+            className={cn(
+              "px-6 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap",
+              tab === 'settings' ? "bg-[#c8323c] text-white shadow-lg shadow-red-900/20" : "text-gray-400 hover:bg-gray-50"
+            )}
+          >
+            Configurações
+          </button>
+        )}
         {user.role === 'admin' && (
           <button 
             onClick={() => setTab('users')}
@@ -1080,8 +1193,8 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
             </button>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <table className="w-full text-left">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
+            <table className="w-full text-left min-w-[600px] md:min-w-0">
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr className="text-xs font-bold text-gray-400 uppercase tracking-wider">
                   <th className="px-6 py-4">Nome / Setor</th>
@@ -1558,6 +1671,60 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {tab === 'settings' && user.role === 'admin' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-gray-800">Configurações do Sistema</h2>
+              <p className="text-sm text-gray-500">Personalize a aparência do portal</p>
+            </div>
+          </div>
+
+          <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm space-y-8">
+            <div className="space-y-4">
+              <label className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-widest">Logo do Sistema</label>
+              <div className="flex flex-col md:flex-row items-start md:items-center gap-8">
+                <div className="w-32 h-32 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden">
+                  {logoUrl ? (
+                    <img src={logoUrl} alt="Preview" className="w-full h-full object-contain p-4" />
+                  ) : (
+                    <ShieldCheck size={48} className="text-gray-200" />
+                  )}
+                </div>
+                <div className="flex-1 space-y-4 w-full">
+                  <div className="space-y-2">
+                    <p className="text-sm font-bold text-gray-700">URL da Imagem</p>
+                    <input 
+                      type="text" 
+                      value={logoUrl}
+                      onChange={e => handleSaveLogo(e.target.value)}
+                      placeholder="https://..."
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none"
+                    />
+                  </div>
+                  <div className="relative">
+                    <input 
+                      type="file" 
+                      accept="image/*"
+                      onChange={e => handleFileUpload(e, 'logo')}
+                      className="hidden"
+                      id="logo-upload"
+                    />
+                    <label 
+                      htmlFor="logo-upload"
+                      className="flex items-center justify-center gap-2 w-full py-3 border-2 border-dashed border-gray-200 rounded-xl text-sm font-bold text-gray-400 hover:border-[#c8323c] hover:text-[#c8323c] cursor-pointer transition-all"
+                    >
+                      {uploading ? "Enviando..." : "Ou clique para Upload"}
+                    </label>
+                  </div>
+                  <p className="text-[10px] text-gray-400">Tamanho recomendado: 512x512px. Formatos aceitos: PNG, JPG, SVG.</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

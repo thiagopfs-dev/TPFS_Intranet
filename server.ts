@@ -89,6 +89,11 @@ db.exec(`
     number TEXT,
     department TEXT
   );
+
+  CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT
+  );
 `);
 
 // Seed Initial Data if empty
@@ -118,6 +123,9 @@ if (userCount.count === 0) {
   insertExtension.run("e1", "Recepção Central", "1000", "Atendimento");
   insertExtension.run("e2", "Recursos Humanos", "1020", "Administrativo");
   insertExtension.run("e3", "TI - Suporte", "1050", "Tecnologia");
+
+  const insertSetting = db.prepare("INSERT INTO settings (key, value) VALUES (?, ?)");
+  insertSetting.run("logoUrl", "");
 }
 
 const JWT_SECRET = "santa-casa-secret-key";
@@ -293,6 +301,13 @@ async function startServer() {
     res.json(data);
   });
 
+  app.get("/api/settings", (req, res) => {
+    const data = db.prepare("SELECT * FROM settings").all() as any[];
+    const settings: Record<string, string> = {};
+    data.forEach(s => settings[s.key] = s.value);
+    res.json(settings);
+  });
+
   // --- File Upload Route ---
   app.post("/api/upload", authenticate, upload.single("file"), (req: any, res) => {
     if (!req.file) return res.status(400).json({ error: "Nenhum arquivo enviado" });
@@ -387,6 +402,13 @@ async function startServer() {
     if (req.user.role === 'user') return res.status(403).json({ error: "Acesso negado" });
     const { id } = req.params;
     db.prepare("DELETE FROM extensions WHERE id = ?").run(id);
+    res.json({ success: true });
+  });
+
+  app.post("/api/settings", authenticate, (req: any, res) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: "Acesso negado" });
+    const { key, value } = req.body;
+    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)").run(key, value);
     res.json({ success: true });
   });
 
