@@ -19,8 +19,10 @@ const db = new Database(path.join(dbDir, "database.sqlite"));
 // Initialize Tables
 db.exec(`
   CREATE TABLE IF NOT EXISTS categories (
-    name TEXT PRIMARY KEY
+    name TEXT PRIMARY KEY,
+    "order" INTEGER DEFAULT 0
   );
+  try { db.exec("ALTER TABLE categories ADD COLUMN \"order\" INTEGER DEFAULT 0;"); } catch (e) {}
 
   CREATE TABLE IF NOT EXISTS shortcuts (
     id TEXT PRIMARY KEY,
@@ -87,8 +89,8 @@ if (userCount.count === 0) {
   insertUser.run("u2", "editor", bcrypt.hashSync("123456", 10), "editor", "Editor de Comunicação", "editor@santacasa.org.br");
   insertUser.run("u3", "user", bcrypt.hashSync("123456", 10), "user", "Colaborador", "user@santacasa.org.br");
 
-  const insertCat = db.prepare("INSERT INTO categories (name) VALUES (?)");
-  ["SISTEMAS", "FORMULÁRIOS", "DIVERSOS"].forEach(c => insertCat.run(c));
+  const insertCat = db.prepare("INSERT INTO categories (name, \"order\") VALUES (?, ?)");
+  ["SISTEMAS", "FORMULÁRIOS", "DIVERSOS"].forEach((c, i) => insertCat.run(c, i));
 
   const insertShortcut = db.prepare("INSERT INTO shortcuts (id, title, iconUrl, link, category, \"order\") VALUES (?, ?, ?, ?, ?, ?)");
   insertShortcut.run("1", "Wareline", "https://picsum.photos/seed/wareline/100/100", "#", "SISTEMAS", 0);
@@ -267,7 +269,7 @@ async function startServer() {
   });
 
   app.get("/api/categories", (req, res) => {
-    const data = db.prepare("SELECT name FROM categories").all() as any[];
+    const data = db.prepare("SELECT name FROM categories ORDER BY \"order\" ASC").all() as any[];
     res.json(data.map(c => c.name));
   });
 
@@ -317,17 +319,30 @@ async function startServer() {
     const { name } = req.body;
     if (!name) return res.status(400).json({ error: "Nome da categoria é obrigatório" });
     try {
-      db.prepare("INSERT INTO categories (name) VALUES (?)").run(name);
+      const maxOrder = db.prepare("SELECT MAX(\"order\") as maxOrder FROM categories").get() as any;
+      const nextOrder = (maxOrder?.maxOrder || 0) + 1;
+      db.prepare("INSERT INTO categories (name, \"order\") VALUES (?, ?)").run(name, nextOrder);
     } catch (e) {}
-    const data = db.prepare("SELECT name FROM categories").all() as any[];
+    const data = db.prepare("SELECT name FROM categories ORDER BY \"order\" ASC").all() as any[];
     res.json(data.map(c => c.name));
+  });
+
+  app.post("/api/categories/reorder", authenticate, (req: any, res) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: "Acesso negado" });
+    const { newOrder } = req.body; // Array of names
+    const update = db.prepare("UPDATE categories SET \"order\" = ? WHERE name = ?");
+    const transaction = db.transaction((names) => {
+      names.forEach((name: string, index: number) => update.run(index, name));
+    });
+    transaction(newOrder);
+    res.json({ success: true });
   });
 
   app.delete("/api/categories/:name", authenticate, (req: any, res) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: "Acesso negado" });
     const { name } = req.params;
     db.prepare("DELETE FROM categories WHERE name = ?").run(name);
-    const data = db.prepare("SELECT name FROM categories").all() as any[];
+    const data = db.prepare("SELECT name FROM categories ORDER BY \"order\" ASC").all() as any[];
     res.json(data.map(c => c.name));
   });
 

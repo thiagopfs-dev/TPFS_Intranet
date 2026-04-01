@@ -70,16 +70,20 @@ export default function App() {
   };
 
   const categories = useMemo(() => {
+    // Group shortcuts by category
     const cats: Record<string, Shortcut[]> = {};
-    // Sort shortcuts by order before grouping
     const sortedShortcuts = [...shortcuts].sort((a, b) => (a.order || 0) - (b.order || 0));
     
     sortedShortcuts.forEach(s => {
       if (!cats[s.category]) cats[s.category] = [];
       cats[s.category].push(s);
     });
-    return Object.entries(cats).map(([name, shortcuts]) => ({ name, shortcuts }));
-  }, [shortcuts]);
+
+    // Use availableCategories to maintain the defined order
+    return availableCategories
+      .filter(name => cats[name]) // Only include categories that have shortcuts
+      .map(name => ({ name, shortcuts: cats[name] }));
+  }, [shortcuts, availableCategories]);
 
   const handleReorder = async (newShortcuts: Shortcut[]) => {
     setShortcuts(newShortcuts);
@@ -379,6 +383,14 @@ export default function App() {
                 categories={availableCategories}
                 onRefresh={refreshData}
                 onReorder={handleReorder}
+                onReorderCategories={async (newOrder) => {
+                  const res = await fetch("/api/categories/reorder", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ newOrder })
+                  });
+                  if (res.ok) refreshData();
+                }}
               />
             )}
           </AnimatePresence>
@@ -506,7 +518,7 @@ function LoginForm({ onSuccess }: { onSuccess: (u: UserProfile) => void }) {
   );
 }
 
-function AdminPanel({ user, shortcuts, news, documents, articles, events, users, categories, onRefresh, onReorder }: { 
+function AdminPanel({ user, shortcuts, news, documents, articles, events, users, categories, onRefresh, onReorder, onReorderCategories }: { 
   user: UserProfile, 
   shortcuts: Shortcut[], 
   news: NewsItem[], 
@@ -516,7 +528,8 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
   users: UserProfile[],
   categories: string[],
   onRefresh: () => void,
-  onReorder: (s: Shortcut[]) => void
+  onReorder: (s: Shortcut[]) => void,
+  onReorderCategories: (c: string[]) => void
 }) {
   const [tab, setTab] = useState<'shortcuts' | 'news' | 'categories' | 'sgq' | 'articles' | 'events' | 'users'>('shortcuts');
   const [editingShortcut, setEditingShortcut] = useState<Partial<Shortcut> | null>(null);
@@ -933,19 +946,26 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
             </button>
           </form>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          <Reorder.Group axis="y" values={categories} onReorder={onReorderCategories} className="space-y-3">
             {categories.map(cat => (
-              <div key={cat} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
-                <span className="font-bold text-gray-700 uppercase tracking-wide">{cat}</span>
+              <Reorder.Item 
+                key={cat} 
+                value={cat}
+                className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between cursor-grab active:cursor-grabbing hover:border-red-200 transition-colors"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="text-gray-300"><GripVertical size={20} /></div>
+                  <span className="font-bold text-gray-700 uppercase tracking-wide">{cat}</span>
+                </div>
                 <button 
                   onClick={() => handleDeleteCategory(cat)}
                   className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                 >
                   <Trash2 size={18} />
                 </button>
-              </div>
+              </Reorder.Item>
             ))}
-          </div>
+          </Reorder.Group>
         </div>
       )}
 
