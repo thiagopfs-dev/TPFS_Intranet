@@ -95,7 +95,7 @@ async function startServer() {
       const token = jwt.sign({ id: user.id, username: user.username, role: user.role, displayName: user.displayName }, JWT_SECRET, { expiresIn: "1d" });
       res.cookie("token", token, { 
         httpOnly: true, 
-        secure: process.env.NODE_ENV === 'production', // Only secure in production (requires HTTPS)
+        secure: false, // Alterado para false para permitir acesso via IP/HTTP em Intranets
         sameSite: 'lax',
         maxAge: 24 * 60 * 60 * 1000 // 1 day
       });
@@ -109,7 +109,7 @@ async function startServer() {
   app.post("/api/logout", (req, res) => {
     res.clearCookie("token", {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: false,
       sameSite: 'lax'
     });
     res.json({ success: true });
@@ -129,6 +129,63 @@ async function startServer() {
   // --- Data Routes ---
   app.get("/api/shortcuts", (req, res) => res.json(shortcuts));
   app.get("/api/news", (req, res) => res.json(news));
+  // --- SGQ Documents Routes ---
+  app.get("/api/documents", (req, res) => res.json(documents));
+  app.post("/api/documents", authenticate, (req: any, res) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: "Acesso negado" });
+    const newDoc = { ...req.body, id: Date.now().toString() };
+    documents.push(newDoc);
+    res.json(newDoc);
+  });
+  app.put("/api/documents/:id", authenticate, (req: any, res) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: "Acesso negado" });
+    documents = documents.map(d => d.id === req.params.id ? { ...d, ...req.body } : d);
+    res.json({ success: true });
+  });
+  app.delete("/api/documents/:id", authenticate, (req: any, res) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: "Acesso negado" });
+    documents = documents.filter(d => d.id !== req.params.id);
+    res.json({ success: true });
+  });
+
+  // --- Articles Routes ---
+  app.get("/api/articles", (req, res) => res.json(articles));
+  app.post("/api/articles", authenticate, (req: any, res) => {
+    if (req.user.role !== 'admin' && req.user.role !== 'editor') return res.status(403).json({ error: "Acesso negado" });
+    const newArticle = { ...req.body, id: Date.now().toString() };
+    articles.push(newArticle);
+    res.json(newArticle);
+  });
+  app.put("/api/articles/:id", authenticate, (req: any, res) => {
+    if (req.user.role !== 'admin' && req.user.role !== 'editor') return res.status(403).json({ error: "Acesso negado" });
+    articles = articles.map(a => a.id === req.params.id ? { ...a, ...req.body } : a);
+    res.json({ success: true });
+  });
+  app.delete("/api/articles/:id", authenticate, (req: any, res) => {
+    if (req.user.role !== 'admin' && req.user.role !== 'editor') return res.status(403).json({ error: "Acesso negado" });
+    articles = articles.filter(a => a.id !== req.params.id);
+    res.json({ success: true });
+  });
+
+  // --- Events Routes ---
+  app.get("/api/events", (req, res) => res.json(events));
+  app.post("/api/events", authenticate, (req: any, res) => {
+    if (req.user.role !== 'admin' && req.user.role !== 'editor') return res.status(403).json({ error: "Acesso negado" });
+    const newEvent = { ...req.body, id: Date.now().toString() };
+    events.push(newEvent);
+    res.json(newEvent);
+  });
+  app.put("/api/events/:id", authenticate, (req: any, res) => {
+    if (req.user.role !== 'admin' && req.user.role !== 'editor') return res.status(403).json({ error: "Acesso negado" });
+    events = events.map(e => e.id === req.params.id ? { ...e, ...req.body } : e);
+    res.json({ success: true });
+  });
+  app.delete("/api/events/:id", authenticate, (req: any, res) => {
+    if (req.user.role !== 'admin' && req.user.role !== 'editor') return res.status(403).json({ error: "Acesso negado" });
+    events = events.filter(e => e.id !== req.params.id);
+    res.json({ success: true });
+  });
+
   app.get("/api/documents", (req, res) => res.json(documents));
   app.get("/api/articles", (req, res) => res.json(articles));
   app.get("/api/events", (req, res) => res.json(events));
