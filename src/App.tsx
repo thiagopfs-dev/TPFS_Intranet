@@ -23,6 +23,7 @@ export default function App() {
   const [documents, setDocuments] = useState<SGQDocument[]>([]);
   const [articles, setArticles] = useState<Article[]>([]);
   const [events, setEvents] = useState<HospitalEvent[]>([]);
+  const [users, setUsers] = useState<UserProfile[]>([]);
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   
   const [activeView, setActiveView] = useState<View>('sistemas');
@@ -92,13 +93,14 @@ export default function App() {
   };
 
   const refreshData = async () => {
-    const [sRes, nRes, dRes, aRes, eRes, cRes] = await Promise.all([
+    const [sRes, nRes, dRes, aRes, eRes, cRes, uRes] = await Promise.all([
       fetch("/api/shortcuts"),
       fetch("/api/news"),
       fetch("/api/documents"),
       fetch("/api/articles"),
       fetch("/api/events"),
-      fetch("/api/categories")
+      fetch("/api/categories"),
+      fetch("/api/users")
     ]);
     
     if (sRes.ok) setShortcuts(await sRes.json());
@@ -107,6 +109,7 @@ export default function App() {
     if (aRes.ok) setArticles(await aRes.json());
     if (eRes.ok) setEvents(await eRes.json());
     if (cRes.ok) setAvailableCategories(await cRes.json());
+    if (uRes.ok) setUsers(await uRes.json());
   };
 
   if (loading) {
@@ -237,11 +240,11 @@ export default function App() {
                 className="space-y-12"
               >
                 {/* Banner */}
-                <div className="relative rounded-2xl overflow-hidden shadow-2xl aspect-[4/1] bg-gray-900">
+                <div className="relative rounded-2xl overflow-hidden shadow-2xl aspect-[4/1] bg-gray-900 group">
                   <img 
                     src={news[0]?.imageUrl || "https://picsum.photos/seed/hospital/1200/300"} 
                     alt="Banner" 
-                    className="w-full h-full object-cover opacity-60"
+                    className="w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-700"
                   />
                   <div className="absolute inset-0 p-10 flex flex-col justify-end text-white">
                     <h1 className="text-4xl font-bold mb-2">{news[0]?.title || "Bem-vindo ao Santa Casa Conecta"}</h1>
@@ -372,6 +375,7 @@ export default function App() {
                 documents={documents}
                 articles={articles}
                 events={events}
+                users={users}
                 categories={availableCategories}
                 onRefresh={refreshData}
                 onReorder={handleReorder}
@@ -502,23 +506,25 @@ function LoginForm({ onSuccess }: { onSuccess: (u: UserProfile) => void }) {
   );
 }
 
-function AdminPanel({ user, shortcuts, news, documents, articles, events, categories, onRefresh, onReorder }: { 
+function AdminPanel({ user, shortcuts, news, documents, articles, events, users, categories, onRefresh, onReorder }: { 
   user: UserProfile, 
   shortcuts: Shortcut[], 
   news: NewsItem[], 
   documents: SGQDocument[],
   articles: Article[],
   events: HospitalEvent[],
+  users: UserProfile[],
   categories: string[],
   onRefresh: () => void,
   onReorder: (s: Shortcut[]) => void
 }) {
-  const [tab, setTab] = useState<'shortcuts' | 'news' | 'categories' | 'sgq' | 'articles' | 'events'>('shortcuts');
+  const [tab, setTab] = useState<'shortcuts' | 'news' | 'categories' | 'sgq' | 'articles' | 'events' | 'users'>('shortcuts');
   const [editingShortcut, setEditingShortcut] = useState<Partial<Shortcut> | null>(null);
   const [editingNews, setEditingNews] = useState<Partial<NewsItem> | null>(null);
   const [editingDocument, setEditingDocument] = useState<Partial<SGQDocument> | null>(null);
   const [editingArticle, setEditingArticle] = useState<Partial<Article> | null>(null);
   const [editingEvent, setEditingEvent] = useState<Partial<HospitalEvent> | null>(null);
+  const [editingUser, setEditingUser] = useState<Partial<UserProfile & { password?: string }> | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [uploading, setUploading] = useState(false);
 
@@ -657,6 +663,33 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, catego
     if (res.ok) onRefresh();
   };
 
+  const handleSaveUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    const method = editingUser.id ? "PUT" : "POST";
+    const url = editingUser.id ? `/api/users/${editingUser.id}` : "/api/users";
+    const res = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(editingUser)
+    });
+    if (res.ok) { setEditingUser(null); onRefresh(); }
+    else {
+      const data = await res.json();
+      alert(data.error || "Erro ao salvar usuário");
+    }
+  };
+
+  const handleDeleteUser = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir este usuário?")) return;
+    const res = await fetch(`/api/users/${id}`, { method: "DELETE" });
+    if (res.ok) onRefresh();
+    else {
+      const data = await res.json();
+      alert(data.error || "Erro ao excluir usuário");
+    }
+  };
+
   const handleAddCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCategoryName.trim()) return;
@@ -738,6 +771,17 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, catego
         >
           Eventos
         </button>
+        {user.role === 'admin' && (
+          <button 
+            onClick={() => setTab('users')}
+            className={cn(
+              "px-6 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap",
+              tab === 'users' ? "bg-[#c8323c] text-white shadow-lg shadow-red-900/20" : "text-gray-400 hover:bg-gray-50"
+            )}
+          >
+            Usuários
+          </button>
+        )}
       </div>
 
       {tab === 'shortcuts' && user.role === 'admin' && (
@@ -1346,6 +1390,101 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, catego
           </div>
         </div>
       )}
+
+      {tab === 'users' && user.role === 'admin' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-gray-800">Gerenciar Usuários</h2>
+              <p className="text-sm text-gray-500">Controle de acesso e permissões</p>
+            </div>
+            <button 
+              onClick={() => setEditingUser({ username: '', displayName: '', email: '', role: 'user', password: '' })}
+              className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl text-sm font-bold hover:bg-green-700 transition-all shadow-lg shadow-green-900/20"
+            >
+              <Plus size={18} />
+              <span>Novo Usuário</span>
+            </button>
+          </div>
+          <div className="grid grid-cols-1 gap-4">
+            {users.map(u => (
+              <div key={u.id} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-gray-50 text-gray-600 rounded-lg flex items-center justify-center">
+                    <UserIcon size={20} />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-gray-800">{u.displayName}</h4>
+                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">{u.username} • {u.role} • {u.email}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setEditingUser(u)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Edit size={18} /></button>
+                  <button onClick={() => handleDeleteUser(u.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18} /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* User Edit Modal */}
+      <AnimatePresence>
+        {editingUser && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setEditingUser(null)}
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
+              className="relative bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden"
+            >
+              <form onSubmit={handleSaveUser} className="p-8 space-y-6">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xl font-bold text-gray-800">{editingUser.id ? 'Editar Usuário' : 'Novo Usuário'}</h3>
+                  <button type="button" onClick={() => setEditingUser(null)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Nome de Exibição</label>
+                    <input type="text" value={editingUser.displayName} onChange={e => setEditingUser({...editingUser, displayName: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none" required />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Usuário (Login)</label>
+                      <input type="text" value={editingUser.username} onChange={e => setEditingUser({...editingUser, username: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none" required />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Permissão (Role)</label>
+                      <select value={editingUser.role} onChange={e => setEditingUser({...editingUser, role: e.target.value as any})} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none">
+                        <option value="user">Usuário (Leitor)</option>
+                        <option value="editor">Editor (Comunicação)</option>
+                        <option value="admin">Administrador (Total)</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">E-mail</label>
+                    <input type="email" value={editingUser.email} onChange={e => setEditingUser({...editingUser, email: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none" required />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">{editingUser.id ? 'Nova Senha (deixe em branco para manter)' : 'Senha'}</label>
+                    <input type="password" value={editingUser.password || ''} onChange={e => setEditingUser({...editingUser, password: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none" required={!editingUser.id} />
+                  </div>
+                </div>
+
+                <button type="submit" className="w-full py-4 bg-[#c8323c] text-white rounded-xl font-bold shadow-lg shadow-red-900/20 hover:bg-[#b02a33] transition-all flex items-center justify-center gap-2">
+                  <Save size={20} />
+                  <span>Salvar Usuário</span>
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

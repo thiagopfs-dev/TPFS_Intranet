@@ -38,7 +38,7 @@ let events = [
 ];
 
 // Mock Users (password is '123456')
-const users = [
+let users = [
   { id: "u1", username: "admin", password: bcrypt.hashSync("123456", 10), role: "admin", displayName: "Administrador", email: "admin@santacasa.org.br" },
   { id: "u2", username: "editor", password: bcrypt.hashSync("123456", 10), role: "editor", displayName: "Editor de Comunicação", email: "editor@santacasa.org.br" },
   { id: "u3", username: "user", password: bcrypt.hashSync("123456", 10), role: "user", displayName: "Colaborador", email: "user@santacasa.org.br" },
@@ -284,6 +284,57 @@ async function startServer() {
   app.delete("/api/news/:id", authenticate, (req: any, res) => {
     if (req.user.role !== 'admin' && req.user.role !== 'editor') return res.status(403).json({ error: "Acesso negado" });
     news = news.filter(n => n.id !== req.params.id);
+    res.json({ success: true });
+  });
+
+  // --- User Management Routes ---
+  app.get("/api/users", authenticate, (req: any, res) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: "Acesso negado" });
+    const usersWithoutPasswords = users.map(({ password, ...u }) => u);
+    res.json(usersWithoutPasswords);
+  });
+
+  app.post("/api/users", authenticate, (req: any, res) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: "Acesso negado" });
+    const { username, password, role, displayName, email } = req.body;
+    if (users.find(u => u.username === username)) return res.status(400).json({ error: "Usuário já existe" });
+    
+    const newUser = {
+      id: Date.now().toString(),
+      username,
+      password: bcrypt.hashSync(password, 10),
+      role,
+      displayName,
+      email
+    };
+    users.push(newUser);
+    const { password: _, ...u } = newUser;
+    res.json(u);
+  });
+
+  app.put("/api/users/:id", authenticate, (req: any, res) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: "Acesso negado" });
+    const index = users.findIndex(u => u.id === req.params.id);
+    if (index === -1) return res.status(404).json({ error: "Usuário não encontrado" });
+    
+    const { password, ...updateData } = req.body;
+    if (password) {
+      users[index].password = bcrypt.hashSync(password, 10);
+    }
+    users[index] = { ...users[index], ...updateData };
+    const { password: _, ...u } = users[index];
+    res.json(u);
+  });
+
+  app.delete("/api/users/:id", authenticate, (req: any, res) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: "Acesso negado" });
+    const index = users.findIndex(u => u.id === req.params.id);
+    if (index === -1) return res.status(404).json({ error: "Usuário não encontrado" });
+    
+    // Prevent deleting self
+    if (users[index].id === req.user.id) return res.status(400).json({ error: "Não é possível excluir o próprio usuário" });
+    
+    users.splice(index, 1);
     res.json({ success: true });
   });
 
