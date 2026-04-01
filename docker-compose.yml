@@ -1,0 +1,12 @@
+services:
+  intranet-app:
+    build: .
+    container_name: tpfs-intranet
+    restart: always
+    ports:
+      - "3002:3000" # Porta externa 3002 mapeada para a interna 3000
+    volumes:
+      - ./public/uploads:/app/public/uploads # Persistência de fotos
+    environment:
+      - NODE_ENV=production
+      - JWT_SECRET=santa-casa-secret-key # Mude para uma chave segura no seu servidor
