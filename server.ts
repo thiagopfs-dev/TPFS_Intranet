@@ -74,6 +74,11 @@ db.exec(`
     category TEXT
   );
 
+  CREATE TABLE IF NOT EXISTS roles (
+    name TEXT PRIMARY KEY,
+    permissions TEXT
+  );
+
   CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     username TEXT UNIQUE,
@@ -97,6 +102,51 @@ db.exec(`
 `);
 
 // Seed Initial Data if empty
+const roleCount = db.prepare("SELECT count(*) as count FROM roles").get() as any;
+if (roleCount.count === 0) {
+  const insertRole = db.prepare("INSERT INTO roles (name, permissions) VALUES (?, ?)");
+  
+  const adminPerms = {
+    shortcuts: true,
+    news: true,
+    sgq: true,
+    articles: true,
+    events: true,
+    ramais: true,
+    users: true,
+    settings: true,
+    roles: true
+  };
+  
+  const editorPerms = {
+    shortcuts: false,
+    news: true,
+    sgq: false,
+    articles: true,
+    events: true,
+    ramais: false, // User explicitly asked to remove this
+    users: false,
+    settings: false,
+    roles: false
+  };
+  
+  const userPerms = {
+    shortcuts: false,
+    news: false,
+    sgq: false,
+    articles: false,
+    events: false,
+    ramais: false,
+    users: false,
+    settings: false,
+    roles: false
+  };
+
+  insertRole.run("admin", JSON.stringify(adminPerms));
+  insertRole.run("editor", JSON.stringify(editorPerms));
+  insertRole.run("user", JSON.stringify(userPerms));
+}
+
 const userCount = db.prepare("SELECT count(*) as count FROM users").get() as any;
 if (userCount.count === 0) {
   const insertUser = db.prepare("INSERT INTO users (id, username, password, role, displayName, email) VALUES (?, ?, ?, ?, ?, ?)");
@@ -165,12 +215,23 @@ async function startServer() {
     const token = req.cookies.token;
     if (!token) return res.status(401).json({ error: "Não autorizado" });
     try {
-      const decoded = jwt.verify(token, JWT_SECRET);
-      req.user = decoded;
+      const decoded = jwt.verify(token, JWT_SECRET) as any;
+      const roleData = db.prepare("SELECT permissions FROM roles WHERE name = ?").get(decoded.role) as any;
+      req.user = { ...decoded, permissions: roleData ? JSON.parse(roleData.permissions) : {} };
       next();
     } catch (err) {
       res.status(401).json({ error: "Token inválido" });
     }
+  };
+
+  const checkPermission = (module: string) => {
+    return (req: any, res: any, next: any) => {
+      if (req.user.role === 'admin') return next();
+      if (req.user.permissions && req.user.permissions[module]) {
+        return next();
+      }
+      res.status(403).json({ error: "Acesso negado" });
+    };
   };
 
   // --- Auth Routes ---
@@ -178,18 +239,25 @@ async function startServer() {
     const { username, password } = req.body;
     const user = db.prepare("SELECT * FROM users WHERE username = ?").get(username) as any;
     if (user && bcrypt.compareSync(password, user.password)) {
+      const roleData = db.prepare("SELECT permissions FROM roles WHERE name = ?").get(user.role) as any;
+      const permissions = roleData ? JSON.parse(roleData.permissions) : {};
+
       const token = jwt.sign({ id: user.id, username: user.username, role: user.role, displayName: user.displayName }, JWT_SECRET, { expiresIn: "1d" });
       res.cookie("token", token, { 
         httpOnly: true, 
-        secure: false, // Alterado para false para permitir acesso via IP/HTTP em Intranets
+        secure: false, 
         sameSite: 'lax',
-        maxAge: 24 * 60 * 60 * 1000 // 1 day
+        maxAge: 24 * 60 * 60 * 1000
       });
       const { password: _, ...userWithoutPassword } = user;
-      res.json(userWithoutPassword);
+      res.json({ ...userWithoutPassword, permissions });
     } else {
       res.status(401).json({ error: "Usuário ou senha inválidos" });
     }
+  });
+
+  app.get("/api/me", authenticate, (req: any, res) => {
+    res.json(req.user);
   });
 
   app.post("/api/logout", (req, res) => {
@@ -226,21 +294,18 @@ async function startServer() {
     const data = db.prepare("SELECT * FROM documents").all();
     res.json(data);
   });
-  app.post("/api/documents", authenticate, (req: any, res) => {
-    if (req.user.role !== 'admin') return res.status(403).json({ error: "Acesso negado" });
+  app.post("/api/documents", authenticate, checkPermission('sgq'), (req: any, res) => {
     const { title, code, version, url, category } = req.body;
     const id = Date.now().toString();
     db.prepare("INSERT INTO documents (id, title, code, version, url, category) VALUES (?, ?, ?, ?, ?, ?)").run(id, title, code, version, url, category);
     res.json({ id, title, code, version, url, category });
   });
-  app.put("/api/documents/:id", authenticate, (req: any, res) => {
-    if (req.user.role !== 'admin') return res.status(403).json({ error: "Acesso negado" });
+  app.put("/api/documents/:id", authenticate, checkPermission('sgq'), (req: any, res) => {
     const { title, code, version, url, category } = req.body;
     db.prepare("UPDATE documents SET title = ?, code = ?, version = ?, url = ?, category = ? WHERE id = ?").run(title, code, version, url, category, req.params.id);
     res.json({ success: true });
   });
-  app.delete("/api/documents/:id", authenticate, (req: any, res) => {
-    if (req.user.role !== 'admin') return res.status(403).json({ error: "Acesso negado" });
+  app.delete("/api/documents/:id", authenticate, checkPermission('sgq'), (req: any, res) => {
     db.prepare("DELETE FROM documents WHERE id = ?").run(req.params.id);
     res.json({ success: true });
   });
@@ -250,21 +315,18 @@ async function startServer() {
     const data = db.prepare("SELECT * FROM articles").all();
     res.json(data);
   });
-  app.post("/api/articles", authenticate, (req: any, res) => {
-    if (req.user.role !== 'admin' && req.user.role !== 'editor') return res.status(403).json({ error: "Acesso negado" });
+  app.post("/api/articles", authenticate, checkPermission('articles'), (req: any, res) => {
     const { title, summary, content, author, date, category } = req.body;
     const id = Date.now().toString();
     db.prepare("INSERT INTO articles (id, title, summary, content, author, date, category) VALUES (?, ?, ?, ?, ?, ?, ?)").run(id, title, summary, content, author, date, category);
     res.json({ id, title, summary, content, author, date, category });
   });
-  app.put("/api/articles/:id", authenticate, (req: any, res) => {
-    if (req.user.role !== 'admin' && req.user.role !== 'editor') return res.status(403).json({ error: "Acesso negado" });
+  app.put("/api/articles/:id", authenticate, checkPermission('articles'), (req: any, res) => {
     const { title, summary, content, author, date, category } = req.body;
     db.prepare("UPDATE articles SET title = ?, summary = ?, content = ?, author = ?, date = ?, category = ? WHERE id = ?").run(title, summary, content, author, date, category, req.params.id);
     res.json({ success: true });
   });
-  app.delete("/api/articles/:id", authenticate, (req: any, res) => {
-    if (req.user.role !== 'admin' && req.user.role !== 'editor') return res.status(403).json({ error: "Acesso negado" });
+  app.delete("/api/articles/:id", authenticate, checkPermission('articles'), (req: any, res) => {
     db.prepare("DELETE FROM articles WHERE id = ?").run(req.params.id);
     res.json({ success: true });
   });
@@ -274,21 +336,18 @@ async function startServer() {
     const data = db.prepare("SELECT * FROM events").all();
     res.json(data);
   });
-  app.post("/api/events", authenticate, (req: any, res) => {
-    if (req.user.role !== 'admin' && req.user.role !== 'editor') return res.status(403).json({ error: "Acesso negado" });
+  app.post("/api/events", authenticate, checkPermission('events'), (req: any, res) => {
     const { title, description, date, time, location, category } = req.body;
     const id = Date.now().toString();
     db.prepare("INSERT INTO events (id, title, description, date, time, location, category) VALUES (?, ?, ?, ?, ?, ?, ?)").run(id, title, description, date, time, location, category);
     res.json({ id, title, description, date, time, location, category });
   });
-  app.put("/api/events/:id", authenticate, (req: any, res) => {
-    if (req.user.role !== 'admin' && req.user.role !== 'editor') return res.status(403).json({ error: "Acesso negado" });
+  app.put("/api/events/:id", authenticate, checkPermission('events'), (req: any, res) => {
     const { title, description, date, time, location, category } = req.body;
     db.prepare("UPDATE events SET title = ?, description = ?, date = ?, time = ?, location = ?, category = ? WHERE id = ?").run(title, description, date, time, location, category, req.params.id);
     res.json({ success: true });
   });
-  app.delete("/api/events/:id", authenticate, (req: any, res) => {
-    if (req.user.role !== 'admin' && req.user.role !== 'editor') return res.status(403).json({ error: "Acesso negado" });
+  app.delete("/api/events/:id", authenticate, checkPermission('events'), (req: any, res) => {
     db.prepare("DELETE FROM events WHERE id = ?").run(req.params.id);
     res.json({ success: true });
   });
@@ -318,29 +377,25 @@ async function startServer() {
   });
 
   // Admin/Editor protected writes
-  app.post("/api/shortcuts", authenticate, (req: any, res) => {
-    if (req.user.role !== 'admin') return res.status(403).json({ error: "Acesso negado" });
+  app.post("/api/shortcuts", authenticate, checkPermission('shortcuts'), (req: any, res) => {
     const { title, iconUrl, link, category, order } = req.body;
     const id = Math.random().toString(36).substr(2, 9);
     db.prepare("INSERT INTO shortcuts (id, title, iconUrl, link, category, \"order\") VALUES (?, ?, ?, ?, ?, ?)").run(id, title, iconUrl, link, category, order || 0);
     res.json({ id, title, iconUrl, link, category, order });
   });
 
-  app.put("/api/shortcuts/:id", authenticate, (req: any, res) => {
-    if (req.user.role !== 'admin') return res.status(403).json({ error: "Acesso negado" });
+  app.put("/api/shortcuts/:id", authenticate, checkPermission('shortcuts'), (req: any, res) => {
     const { title, iconUrl, link, category, order } = req.body;
     db.prepare("UPDATE shortcuts SET title = ?, iconUrl = ?, link = ?, category = ?, \"order\" = ? WHERE id = ?").run(title, iconUrl, link, category, order, req.params.id);
     res.json({ success: true });
   });
 
-  app.delete("/api/shortcuts/:id", authenticate, (req: any, res) => {
-    if (req.user.role !== 'admin') return res.status(403).json({ error: "Acesso negado" });
+  app.delete("/api/shortcuts/:id", authenticate, checkPermission('shortcuts'), (req: any, res) => {
     db.prepare("DELETE FROM shortcuts WHERE id = ?").run(req.params.id);
     res.json({ success: true });
   });
 
-  app.post("/api/shortcuts/reorder", authenticate, (req: any, res) => {
-    if (req.user.role !== 'admin') return res.status(403).json({ error: "Acesso negado" });
+  app.post("/api/shortcuts/reorder", authenticate, checkPermission('shortcuts'), (req: any, res) => {
     const { newOrder } = req.body; // Array of IDs
     const update = db.prepare("UPDATE shortcuts SET \"order\" = ? WHERE id = ?");
     const transaction = db.transaction((ids) => {
@@ -351,8 +406,7 @@ async function startServer() {
   });
 
   // --- Category Routes ---
-  app.post("/api/categories", authenticate, (req: any, res) => {
-    if (req.user.role !== 'admin') return res.status(403).json({ error: "Acesso negado" });
+  app.post("/api/categories", authenticate, checkPermission('shortcuts'), (req: any, res) => {
     const { name } = req.body;
     if (!name) return res.status(400).json({ error: "Nome da categoria é obrigatório" });
     try {
@@ -364,8 +418,7 @@ async function startServer() {
     res.json(data.map(c => c.name));
   });
 
-  app.post("/api/categories/reorder", authenticate, (req: any, res) => {
-    if (req.user.role !== 'admin') return res.status(403).json({ error: "Acesso negado" });
+  app.post("/api/categories/reorder", authenticate, checkPermission('shortcuts'), (req: any, res) => {
     const { newOrder } = req.body; // Array of names
     const update = db.prepare("UPDATE categories SET \"order\" = ? WHERE name = ?");
     const transaction = db.transaction((names) => {
@@ -375,8 +428,7 @@ async function startServer() {
     res.json({ success: true });
   });
 
-  app.delete("/api/categories/:name", authenticate, (req: any, res) => {
-    if (req.user.role !== 'admin') return res.status(403).json({ error: "Acesso negado" });
+  app.delete("/api/categories/:name", authenticate, checkPermission('shortcuts'), (req: any, res) => {
     const { name } = req.params;
     db.prepare("DELETE FROM categories WHERE name = ?").run(name);
     const data = db.prepare("SELECT name FROM categories ORDER BY \"order\" ASC").all() as any[];
@@ -384,74 +436,62 @@ async function startServer() {
   });
 
   // --- Extension Routes ---
-  app.post("/api/extensions", authenticate, (req: any, res) => {
-    if (req.user.role === 'user') return res.status(403).json({ error: "Acesso negado" });
+  app.post("/api/extensions", authenticate, checkPermission('ramais'), (req: any, res) => {
     const { name, number, department } = req.body;
     const id = Date.now().toString();
     db.prepare("INSERT INTO extensions (id, name, number, department) VALUES (?, ?, ?, ?)").run(id, name, number, department);
     res.json({ id, name, number, department });
   });
 
-  app.put("/api/extensions/:id", authenticate, (req: any, res) => {
-    if (req.user.role === 'user') return res.status(403).json({ error: "Acesso negado" });
+  app.put("/api/extensions/:id", authenticate, checkPermission('ramais'), (req: any, res) => {
     const { id } = req.params;
     const { name, number, department } = req.body;
     db.prepare("UPDATE extensions SET name = ?, number = ?, department = ? WHERE id = ?").run(name, number, department, id);
     res.json({ id, name, number, department });
   });
 
-  app.delete("/api/extensions/:id", authenticate, (req: any, res) => {
-    if (req.user.role === 'user') return res.status(403).json({ error: "Acesso negado" });
+  app.delete("/api/extensions/:id", authenticate, checkPermission('ramais'), (req: any, res) => {
     const { id } = req.params;
     db.prepare("DELETE FROM extensions WHERE id = ?").run(id);
     res.json({ success: true });
   });
 
-  app.post("/api/settings", authenticate, (req: any, res) => {
-    if (req.user.role !== 'admin') return res.status(403).json({ error: "Acesso negado" });
+  app.post("/api/settings", authenticate, checkPermission('settings'), (req: any, res) => {
     const { key, value } = req.body;
     db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)").run(key, value);
     res.json({ success: true });
   });
 
-  app.post("/api/news", authenticate, (req: any, res) => {
-    if (req.user.role !== 'admin' && req.user.role !== 'editor') return res.status(403).json({ error: "Acesso negado" });
+  app.post("/api/news", authenticate, checkPermission('news'), (req: any, res) => {
     const { title, content, date, imageUrl } = req.body;
     const id = Math.random().toString(36).substr(2, 9);
     db.prepare("INSERT INTO news (id, title, content, date, imageUrl) VALUES (?, ?, ?, ?, ?)").run(id, title, content, date, imageUrl);
     res.json({ id, title, content, date, imageUrl });
   });
 
-  app.put("/api/news/:id", authenticate, (req: any, res) => {
-    if (req.user.role !== 'admin' && req.user.role !== 'editor') return res.status(403).json({ error: "Acesso negado" });
+  app.put("/api/news/:id", authenticate, checkPermission('news'), (req: any, res) => {
     const { title, content, date, imageUrl } = req.body;
     db.prepare("UPDATE news SET title = ?, content = ?, date = ?, imageUrl = ? WHERE id = ?").run(title, content, date, imageUrl, req.params.id);
     res.json({ success: true });
   });
 
-  app.post("/api/news/reorder", authenticate, (req: any, res) => {
-    if (req.user.role !== 'admin' && req.user.role !== 'editor') return res.status(403).json({ error: "Acesso negado" });
+  app.post("/api/news/reorder", authenticate, checkPermission('news'), (req: any, res) => {
     const { newOrder } = req.body;
-    // For news we don't have an order column yet, but we can just reorder the whole array if we were using memory.
-    // In SQL, we should probably add an order column. For now, let's just return success or implement order.
     res.json({ success: true });
   });
 
-  app.delete("/api/news/:id", authenticate, (req: any, res) => {
-    if (req.user.role !== 'admin' && req.user.role !== 'editor') return res.status(403).json({ error: "Acesso negado" });
+  app.delete("/api/news/:id", authenticate, checkPermission('news'), (req: any, res) => {
     db.prepare("DELETE FROM news WHERE id = ?").run(req.params.id);
     res.json({ success: true });
   });
 
   // --- User Management Routes ---
-  app.get("/api/users", authenticate, (req: any, res) => {
-    if (req.user.role !== 'admin') return res.status(403).json({ error: "Acesso negado" });
+  app.get("/api/users", authenticate, checkPermission('users'), (req: any, res) => {
     const data = db.prepare("SELECT id, username, role, displayName, email FROM users").all();
     res.json(data);
   });
 
-  app.post("/api/users", authenticate, (req: any, res) => {
-    if (req.user.role !== 'admin') return res.status(403).json({ error: "Acesso negado" });
+  app.post("/api/users", authenticate, checkPermission('users'), (req: any, res) => {
     const { username, password, role, displayName, email } = req.body;
     const existing = db.prepare("SELECT * FROM users WHERE username = ?").get(username);
     if (existing) return res.status(400).json({ error: "Usuário já existe" });
@@ -462,8 +502,7 @@ async function startServer() {
     res.json({ id, username, role, displayName, email });
   });
 
-  app.put("/api/users/:id", authenticate, (req: any, res) => {
-    if (req.user.role !== 'admin') return res.status(403).json({ error: "Acesso negado" });
+  app.put("/api/users/:id", authenticate, checkPermission('users'), (req: any, res) => {
     const { username, password, role, displayName, email } = req.body;
     
     if (password) {
@@ -475,13 +514,36 @@ async function startServer() {
     res.json({ success: true });
   });
 
-  app.delete("/api/users/:id", authenticate, (req: any, res) => {
-    if (req.user.role !== 'admin') return res.status(403).json({ error: "Acesso negado" });
+  app.delete("/api/users/:id", authenticate, checkPermission('users'), (req: any, res) => {
     
     // Prevent deleting self
     if (req.params.id === req.user.id) return res.status(400).json({ error: "Não é possível excluir o próprio usuário" });
     
     db.prepare("DELETE FROM users WHERE id = ?").run(req.params.id);
+    res.json({ success: true });
+  });
+
+  // --- Role Management Routes ---
+  app.get("/api/roles", authenticate, checkPermission('roles'), (req: any, res) => {
+    const data = db.prepare("SELECT * FROM roles").all() as any[];
+    res.json(data.map(r => ({ name: r.name, permissions: JSON.parse(r.permissions) })));
+  });
+
+  app.post("/api/roles", authenticate, checkPermission('roles'), (req: any, res) => {
+    const { name, permissions } = req.body;
+    db.prepare("INSERT INTO roles (name, permissions) VALUES (?, ?)").run(name, JSON.stringify(permissions));
+    res.json({ name, permissions });
+  });
+
+  app.put("/api/roles/:name", authenticate, checkPermission('roles'), (req: any, res) => {
+    const { permissions } = req.body;
+    db.prepare("UPDATE roles SET permissions = ? WHERE name = ?").run(JSON.stringify(permissions), req.params.name);
+    res.json({ success: true });
+  });
+
+  app.delete("/api/roles/:name", authenticate, checkPermission('roles'), (req: any, res) => {
+    if (req.params.name === 'admin') return res.status(400).json({ error: "Não é possível excluir o papel de administrador" });
+    db.prepare("DELETE FROM roles WHERE name = ?").run(req.params.name);
     res.json({ success: true });
   });
 

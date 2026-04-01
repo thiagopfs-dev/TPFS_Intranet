@@ -10,7 +10,8 @@ import {
 import { motion, AnimatePresence, Reorder } from "motion/react";
 import { 
   Shortcut, NewsItem, UserProfile, UserRole, 
-  SGQDocument, Article, HospitalEvent, PhoneExtension
+  SGQDocument, Article, HospitalEvent, PhoneExtension,
+  Role, Permissions
 } from "./types";
 import { cn } from "./lib/utils";
 
@@ -34,6 +35,7 @@ export default function App() {
   const [events, setEvents] = useState<HospitalEvent[]>([]);
   const [extensions, setExtensions] = useState<PhoneExtension[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   const [logoUrl, setLogoUrl] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -140,7 +142,7 @@ export default function App() {
   };
 
   const refreshData = async () => {
-    const [sRes, nRes, dRes, aRes, eRes, cRes, uRes, exRes, setRes] = await Promise.all([
+    const [sRes, nRes, dRes, aRes, eRes, cRes, uRes, exRes, setRes, rRes] = await Promise.all([
       fetch("/api/shortcuts"),
       fetch("/api/news"),
       fetch("/api/documents"),
@@ -149,7 +151,8 @@ export default function App() {
       fetch("/api/categories"),
       fetch("/api/users"),
       fetch("/api/extensions"),
-      fetch("/api/settings")
+      fetch("/api/settings"),
+      fetch("/api/roles")
     ]);
     
     if (sRes.ok) setShortcuts(await sRes.json());
@@ -160,6 +163,7 @@ export default function App() {
     if (cRes.ok) setAvailableCategories(await cRes.json());
     if (uRes.ok) setUsers(await uRes.json());
     if (exRes.ok) setExtensions(await exRes.json());
+    if (rRes.ok) setRoles(await rRes.json());
     if (setRes.ok) {
       const settings = await setRes.json();
       if (settings.logoUrl) setLogoUrl(settings.logoUrl);
@@ -229,7 +233,7 @@ export default function App() {
             onClick={() => { setActiveView('eventos'); setSearchTerm(""); }}
           />
           
-          {user && (user.role === 'admin' || user.role === 'editor') && (
+          {user && (user.role === 'admin' || Object.values(user.permissions || {}).some(v => v)) && (
             <div className="pt-8 mt-8 border-t border-white/10">
               <NavItem 
                 icon={<Settings size={24} />} 
@@ -588,6 +592,7 @@ export default function App() {
                 articles={articles}
                 events={events}
                 users={users}
+                roles={roles}
                 categories={availableCategories}
                 extensions={extensions}
                 logoUrl={logoUrl}
@@ -629,7 +634,7 @@ export default function App() {
             active={activeView === 'artigos'} 
             onClick={() => { setActiveView('artigos'); setSearchTerm(""); }}
           />
-          {user && (user.role === 'admin' || user.role === 'editor') && (
+          {user && (user.role === 'admin' || Object.values(user.permissions || {}).some(v => v)) && (
             <MobileNavItem 
               icon={<Settings size={24} />} 
               active={activeView === 'admin'} 
@@ -828,7 +833,7 @@ function LoginForm({ onSuccess }: { onSuccess: (u: UserProfile) => void }) {
   );
 }
 
-function AdminPanel({ user, shortcuts, news, documents, articles, events, users, categories, extensions, logoUrl, announcement, onRefresh, onReorder, onReorderCategories }: { 
+function AdminPanel({ user, shortcuts, news, documents, articles, events, users, roles, categories, extensions, logoUrl, announcement, onRefresh, onReorder, onReorderCategories }: { 
   user: UserProfile, 
   shortcuts: Shortcut[], 
   news: NewsItem[], 
@@ -836,6 +841,7 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
   articles: Article[],
   events: HospitalEvent[],
   users: UserProfile[],
+  roles: Role[],
   categories: string[],
   extensions: PhoneExtension[],
   logoUrl: string,
@@ -844,18 +850,48 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
   onReorder: (s: Shortcut[]) => void,
   onReorderCategories: (c: string[]) => void
 }) {
-  const [tab, setTab] = useState<'shortcuts' | 'news' | 'categories' | 'sgq' | 'articles' | 'events' | 'users' | 'ramais' | 'settings'>('shortcuts');
+  const [tab, setTab] = useState<string>('shortcuts');
   const [editingShortcut, setEditingShortcut] = useState<Partial<Shortcut> | null>(null);
   const [editingNews, setEditingNews] = useState<Partial<NewsItem> | null>(null);
   const [editingDocument, setEditingDocument] = useState<Partial<SGQDocument> | null>(null);
   const [editingArticle, setEditingArticle] = useState<Partial<Article> | null>(null);
   const [editingEvent, setEditingEvent] = useState<Partial<HospitalEvent> | null>(null);
   const [editingUser, setEditingUser] = useState<Partial<UserProfile & { password?: string }> | null>(null);
+  const [editingRole, setEditingRole] = useState<Partial<Role> | null>(null);
   const [editingExtension, setEditingExtension] = useState<Partial<PhoneExtension> | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [uploading, setUploading] = useState(false);
   const [annMsg, setAnnMsg] = useState(announcement.message);
   const [annEnabled, setAnnEnabled] = useState(announcement.enabled);
+
+  const availableTabs = useMemo(() => {
+    const tabs = [
+      { id: 'shortcuts', label: 'Atalhos', icon: <LinkIcon size={18} /> },
+      { id: 'news', label: 'Avisos', icon: <Bell size={18} /> },
+      { id: 'categories', label: 'Categorias', icon: <Layers size={18} /> },
+      { id: 'sgq', label: 'SGQ', icon: <FileCheck size={18} /> },
+      { id: 'articles', label: 'Artigos', icon: <BookOpen size={18} /> },
+      { id: 'events', label: 'Eventos', icon: <Calendar size={18} /> },
+      { id: 'ramais', label: 'Ramais', icon: <Phone size={18} /> },
+      { id: 'users', label: 'Usuários', icon: <UserIcon size={18} /> },
+      { id: 'roles', label: 'Perfis de Acesso', icon: <ShieldCheck size={18} /> },
+      { id: 'settings', label: 'Configurações', icon: <Settings size={18} /> },
+    ];
+
+    if (user.role === 'admin') return tabs;
+    
+    return tabs.filter(t => {
+      if (t.id === 'categories') return user.permissions?.shortcuts;
+      if (t.id === 'roles') return user.permissions?.roles;
+      return user.permissions?.[t.id as keyof Permissions];
+    });
+  }, [user]);
+
+  useEffect(() => {
+    if (!availableTabs.find(t => t.id === tab)) {
+      setTab(availableTabs[0]?.id || 'shortcuts');
+    }
+  }, [availableTabs]);
 
   useEffect(() => {
     setAnnMsg(announcement.message);
@@ -1042,6 +1078,34 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
     }
   };
 
+  const handleSaveRole = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingRole) return;
+    const isNew = !roles.find(r => r.name === editingRole.name);
+    const method = isNew ? "POST" : "PUT";
+    const url = isNew ? "/api/roles" : `/api/roles/${editingRole.name}`;
+    const res = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(editingRole)
+    });
+    if (res.ok) { setEditingRole(null); onRefresh(); }
+    else {
+      const data = await res.json();
+      alert(data.error || "Erro ao salvar perfil");
+    }
+  };
+
+  const handleDeleteRole = async (name: string) => {
+    if (!confirm("Tem certeza que deseja excluir este perfil?")) return;
+    const res = await fetch(`/api/roles/${name}`, { method: "DELETE" });
+    if (res.ok) onRefresh();
+    else {
+      const data = await res.json();
+      alert(data.error || "Erro ao excluir perfil");
+    }
+  };
+
   const handleSaveExtension = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingExtension) return;
@@ -1097,94 +1161,22 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
       className="space-y-8"
     >
       <div className="flex items-center gap-4 bg-white p-2 rounded-2xl shadow-sm border border-gray-100 w-fit overflow-x-auto max-w-full">
-        <button 
-          onClick={() => setTab('shortcuts')}
-          className={cn(
-            "px-6 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap",
-            tab === 'shortcuts' ? "bg-[#c8323c] text-white shadow-lg shadow-red-900/20" : "text-gray-400 hover:bg-gray-50"
-          )}
-        >
-          Atalhos
-        </button>
-        <button 
-          onClick={() => setTab('news')}
-          className={cn(
-            "px-6 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap",
-            tab === 'news' ? "bg-[#c8323c] text-white shadow-lg shadow-red-900/20" : "text-gray-400 hover:bg-gray-50"
-          )}
-        >
-          Comunicação
-        </button>
-        <button 
-          onClick={() => setTab('categories')}
-          className={cn(
-            "px-6 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap",
-            tab === 'categories' ? "bg-[#c8323c] text-white shadow-lg shadow-red-900/20" : "text-gray-400 hover:bg-gray-50"
-          )}
-        >
-          Categorias
-        </button>
-        <button 
-          onClick={() => setTab('sgq')}
-          className={cn(
-            "px-6 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap",
-            tab === 'sgq' ? "bg-[#c8323c] text-white shadow-lg shadow-red-900/20" : "text-gray-400 hover:bg-gray-50"
-          )}
-        >
-          SGQ
-        </button>
-        <button 
-          onClick={() => setTab('articles')}
-          className={cn(
-            "px-6 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap",
-            tab === 'articles' ? "bg-[#c8323c] text-white shadow-lg shadow-red-900/20" : "text-gray-400 hover:bg-gray-50"
-          )}
-        >
-          Artigos
-        </button>
-        <button 
-          onClick={() => setTab('ramais')}
-          className={cn(
-            "px-6 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap",
-            tab === 'ramais' ? "bg-[#c8323c] text-white shadow-lg shadow-red-900/20" : "text-gray-400 hover:bg-gray-50"
-          )}
-        >
-          Ramais
-        </button>
-        <button 
-          onClick={() => setTab('events')}
-          className={cn(
-            "px-6 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap",
-            tab === 'events' ? "bg-[#c8323c] text-white shadow-lg shadow-red-900/20" : "text-gray-400 hover:bg-gray-50"
-          )}
-        >
-          Eventos
-        </button>
-        {user.role === 'admin' && (
+        {availableTabs.map((t) => (
           <button 
-            onClick={() => setTab('settings')}
+            key={t.id}
+            onClick={() => setTab(t.id)}
             className={cn(
-              "px-6 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap",
-              tab === 'settings' ? "bg-[#c8323c] text-white shadow-lg shadow-red-900/20" : "text-gray-400 hover:bg-gray-50"
+              "px-6 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap flex items-center gap-2",
+              tab === t.id ? "bg-[#c8323c] text-white shadow-lg shadow-red-900/20" : "text-gray-400 hover:bg-gray-50"
             )}
           >
-            Configurações
+            {t.icon}
+            {t.label}
           </button>
-        )}
-        {user.role === 'admin' && (
-          <button 
-            onClick={() => setTab('users')}
-            className={cn(
-              "px-6 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap",
-              tab === 'users' ? "bg-[#c8323c] text-white shadow-lg shadow-red-900/20" : "text-gray-400 hover:bg-gray-50"
-            )}
-          >
-            Usuários
-          </button>
-        )}
+        ))}
       </div>
 
-      {tab === 'shortcuts' && user.role === 'admin' && (
+      {tab === 'shortcuts' && (
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
@@ -1310,7 +1302,7 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
         </div>
       )}
 
-      {tab === 'categories' && user.role === 'admin' && (
+      {tab === 'categories' && availableTabs.some(t => t.id === 'categories') && (
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
@@ -1743,7 +1735,7 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
         )}
       </AnimatePresence>
 
-      {tab === 'sgq' && user.role === 'admin' && (
+      {tab === 'sgq' && availableTabs.some(t => t.id === 'sgq') && (
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
@@ -1780,7 +1772,7 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
         </div>
       )}
 
-      {tab === 'articles' && (user.role === 'admin' || user.role === 'editor') && (
+      {tab === 'articles' && availableTabs.some(t => t.id === 'articles') && (
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
@@ -1817,7 +1809,7 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
         </div>
       )}
 
-      {tab === 'events' && (user.role === 'admin' || user.role === 'editor') && (
+      {tab === 'events' && availableTabs.some(t => t.id === 'events') && (
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
@@ -1854,7 +1846,7 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
         </div>
       )}
 
-      {tab === 'settings' && user.role === 'admin' && (
+      {tab === 'settings' && availableTabs.some(t => t.id === 'settings') && (
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
@@ -1950,7 +1942,7 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
         </div>
       )}
 
-      {tab === 'users' && user.role === 'admin' && (
+      {tab === 'users' && availableTabs.some(t => t.id === 'users') && (
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
@@ -1958,7 +1950,7 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
               <p className="text-sm text-gray-500">Controle de acesso e permissões</p>
             </div>
             <button 
-              onClick={() => setEditingUser({ username: '', displayName: '', email: '', role: 'user', password: '' })}
+              onClick={() => setEditingUser({ username: '', displayName: '', email: '', role: roles[0]?.name || 'user', password: '' })}
               className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl text-sm font-bold hover:bg-green-700 transition-all shadow-lg shadow-green-900/20"
             >
               <Plus size={18} />
@@ -1980,6 +1972,47 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
                 <div className="flex items-center gap-2">
                   <button onClick={() => setEditingUser(u)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Edit size={18} /></button>
                   <button onClick={() => handleDeleteUser(u.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18} /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab === 'roles' && availableTabs.some(t => t.id === 'roles') && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-gray-800">Perfis de Acesso</h2>
+              <p className="text-sm text-gray-500">Gerencie os perfis e suas permissões</p>
+            </div>
+            <button 
+              onClick={() => setEditingRole({ name: '', permissions: { shortcuts: false, news: false, sgq: false, articles: false, events: false, ramais: false, users: false, settings: false, roles: false } })}
+              className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl text-sm font-bold hover:bg-green-700 transition-all shadow-lg shadow-green-900/20"
+            >
+              <Plus size={18} />
+              <span>Novo Perfil</span>
+            </button>
+          </div>
+          <div className="grid grid-cols-1 gap-4">
+            {roles.map(r => (
+              <div key={r.name} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-gray-50 text-gray-600 rounded-lg flex items-center justify-center">
+                    <ShieldCheck size={20} />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-gray-800">{r.name}</h4>
+                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">
+                      {Object.entries(r.permissions).filter(([_, v]) => v).map(([k]) => k).join(', ') || 'Nenhuma permissão'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setEditingRole(r)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Edit size={18} /></button>
+                  {r.name !== 'admin' && (
+                    <button onClick={() => handleDeleteRole(r.name)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18} /></button>
+                  )}
                 </div>
               </div>
             ))}
@@ -2019,9 +2052,9 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
                     <div>
                       <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Permissão (Role)</label>
                       <select value={editingUser.role} onChange={e => setEditingUser({...editingUser, role: e.target.value as any})} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none">
-                        <option value="user">Usuário (Leitor)</option>
-                        <option value="editor">Editor (Comunicação)</option>
-                        <option value="admin">Administrador (Total)</option>
+                        {roles.map(r => (
+                          <option key={r.name} value={r.name}>{r.name}</option>
+                        ))}
                       </select>
                     </div>
                   </div>
@@ -2038,6 +2071,69 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
                 <button type="submit" className="w-full py-4 bg-[#c8323c] text-white rounded-xl font-bold shadow-lg shadow-red-900/20 hover:bg-[#b02a33] transition-all flex items-center justify-center gap-2">
                   <Save size={20} />
                   <span>Salvar Usuário</span>
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+
+        {editingRole && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setEditingRole(null)}
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
+              className="relative bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
+            >
+              <form onSubmit={handleSaveRole} className="p-8 space-y-6">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xl font-bold text-gray-800">{roles.find(r => r.name === editingRole.name) ? 'Editar Perfil' : 'Novo Perfil'}</h3>
+                  <button type="button" onClick={() => setEditingRole(null)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+                </div>
+
+                <div className="space-y-6">
+                  <div>
+                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Nome do Perfil</label>
+                    <input 
+                      type="text" 
+                      value={editingRole.name} 
+                      onChange={e => setEditingRole({...editingRole, name: e.target.value})} 
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none" 
+                      required 
+                      disabled={!!roles.find(r => r.name === editingRole.name)} // Disable if editing existing
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="text-xs font-bold text-gray-400 uppercase mb-4 block">Permissões de Acesso</label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {Object.keys(editingRole.permissions || {}).map((permKey) => (
+                        <label key={permKey} className="flex items-center gap-3 p-3 border border-gray-100 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
+                          <input 
+                            type="checkbox" 
+                            checked={editingRole.permissions?.[permKey as keyof Permissions] || false}
+                            onChange={(e) => setEditingRole({
+                              ...editingRole, 
+                              permissions: {
+                                ...editingRole.permissions,
+                                [permKey]: e.target.checked
+                              } as Permissions
+                            })}
+                            className="w-5 h-5 rounded border-gray-300 text-[#c8323c] focus:ring-[#c8323c]"
+                          />
+                          <span className="font-medium text-gray-700 capitalize">{permKey}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <button type="submit" className="w-full py-4 bg-[#c8323c] text-white rounded-xl font-bold shadow-lg shadow-red-900/20 hover:bg-[#b02a33] transition-all flex items-center justify-center gap-2">
+                  <Save size={20} />
+                  <span>Salvar Perfil</span>
                 </button>
               </form>
             </motion.div>

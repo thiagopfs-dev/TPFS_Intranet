@@ -1,11 +1,29 @@
-export type UserRole = 'admin' | 'editor' | 'user';
+export type UserRole = string;
+
+export interface Permissions {
+  shortcuts: boolean;
+  news: boolean;
+  sgq: boolean;
+  articles: boolean;
+  events: boolean;
+  ramais: boolean;
+  users: boolean;
+  settings: boolean;
+  roles: boolean;
+}
+
+export interface Role {
+  name: string;
+  permissions: Permissions;
+}
 
 export interface UserProfile {
   id: string;
   username: string;
   email: string;
-  role: UserRole;
+  role: string;
   displayName: string;
+  permissions?: Permissions;
 }
 
 export interface Shortcut {
