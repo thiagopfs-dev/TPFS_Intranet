@@ -58,3 +58,10 @@ export interface HospitalEvent {
   location: string;
   category: string;
 }
+
+export interface PhoneExtension {
+  id: string;
+  name: string;
+  number: string;
+  department: string;
+}

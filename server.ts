@@ -82,6 +82,13 @@ db.exec(`
     displayName TEXT,
     email TEXT
   );
+
+  CREATE TABLE IF NOT EXISTS extensions (
+    id TEXT PRIMARY KEY,
+    name TEXT,
+    number TEXT,
+    department TEXT
+  );
 `);
 
 // Seed Initial Data if empty
@@ -106,6 +113,11 @@ if (userCount.count === 0) {
   const insertNews = db.prepare("INSERT INTO news (id, title, content, date, imageUrl) VALUES (?, ?, ?, ?, ?)");
   insertNews.run("n1", "Campanha Março Lilás", "Combate ao câncer do colo do útero. Conscientização e prevenção são fundamentais.", "2024-03-01", "https://picsum.photos/seed/marcolilas/800/200");
   insertNews.run("n2", "Novo Sistema de Chamados", "A partir de hoje, utilize o novo portal para abertura de chamados de TI.", "2024-03-15", null);
+
+  const insertExtension = db.prepare("INSERT INTO extensions (id, name, number, department) VALUES (?, ?, ?, ?)");
+  insertExtension.run("e1", "Recepção Central", "1000", "Atendimento");
+  insertExtension.run("e2", "Recursos Humanos", "1020", "Administrativo");
+  insertExtension.run("e3", "TI - Suporte", "1050", "Tecnologia");
 }
 
 const JWT_SECRET = "santa-casa-secret-key";
@@ -276,6 +288,11 @@ async function startServer() {
     res.json(data.map(c => c.name));
   });
 
+  app.get("/api/extensions", (req, res) => {
+    const data = db.prepare("SELECT * FROM extensions ORDER BY name ASC").all();
+    res.json(data);
+  });
+
   // --- File Upload Route ---
   app.post("/api/upload", authenticate, upload.single("file"), (req: any, res) => {
     if (!req.file) return res.status(400).json({ error: "Nenhum arquivo enviado" });
@@ -347,6 +364,30 @@ async function startServer() {
     db.prepare("DELETE FROM categories WHERE name = ?").run(name);
     const data = db.prepare("SELECT name FROM categories ORDER BY \"order\" ASC").all() as any[];
     res.json(data.map(c => c.name));
+  });
+
+  // --- Extension Routes ---
+  app.post("/api/extensions", authenticate, (req: any, res) => {
+    if (req.user.role === 'user') return res.status(403).json({ error: "Acesso negado" });
+    const { name, number, department } = req.body;
+    const id = Date.now().toString();
+    db.prepare("INSERT INTO extensions (id, name, number, department) VALUES (?, ?, ?, ?)").run(id, name, number, department);
+    res.json({ id, name, number, department });
+  });
+
+  app.put("/api/extensions/:id", authenticate, (req: any, res) => {
+    if (req.user.role === 'user') return res.status(403).json({ error: "Acesso negado" });
+    const { id } = req.params;
+    const { name, number, department } = req.body;
+    db.prepare("UPDATE extensions SET name = ?, number = ?, department = ? WHERE id = ?").run(name, number, department, id);
+    res.json({ id, name, number, department });
+  });
+
+  app.delete("/api/extensions/:id", authenticate, (req: any, res) => {
+    if (req.user.role === 'user') return res.status(403).json({ error: "Acesso negado" });
+    const { id } = req.params;
+    db.prepare("DELETE FROM extensions WHERE id = ?").run(id);
+    res.json({ success: true });
   });
 
   app.post("/api/news", authenticate, (req: any, res) => {

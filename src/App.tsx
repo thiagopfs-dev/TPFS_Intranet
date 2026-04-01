@@ -5,16 +5,25 @@ import {
   LayoutDashboard, FileText, User as UserIcon, LogIn,
   BookOpen, Calendar, FileCheck, Menu, X, ChevronRight,
   Home, Info, ShieldCheck, GripVertical, Save, Image as ImageIcon,
-  Link as LinkIcon, Type, Layers
+  Link as LinkIcon, Type, Layers, Phone, PhoneCall
 } from "lucide-react";
 import { motion, AnimatePresence, Reorder } from "motion/react";
 import { 
   Shortcut, NewsItem, UserProfile, UserRole, 
-  SGQDocument, Article, HospitalEvent 
+  SGQDocument, Article, HospitalEvent, PhoneExtension
 } from "./types";
 import { cn } from "./lib/utils";
 
-type View = 'sistemas' | 'sgq' | 'artigos' | 'eventos' | 'admin';
+type View = 'sistemas' | 'sgq' | 'artigos' | 'eventos' | 'ramais' | 'admin';
+
+const viewTitles: Record<View, string> = {
+  sistemas: 'Santa Casa Conecta',
+  sgq: 'Documentos SGQ',
+  artigos: 'Artigos',
+  eventos: 'Eventos',
+  ramais: 'Ramais',
+  admin: 'Painel Administrativo'
+};
 
 export default function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -23,6 +32,7 @@ export default function App() {
   const [documents, setDocuments] = useState<SGQDocument[]>([]);
   const [articles, setArticles] = useState<Article[]>([]);
   const [events, setEvents] = useState<HospitalEvent[]>([]);
+  const [extensions, setExtensions] = useState<PhoneExtension[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   
@@ -44,13 +54,14 @@ export default function App() {
   // Data fetching
   useEffect(() => {
     const fetchData = async () => {
-      const [sRes, nRes, dRes, aRes, eRes, cRes] = await Promise.all([
+      const [sRes, nRes, dRes, aRes, eRes, cRes, exRes] = await Promise.all([
         fetch("/api/shortcuts"),
         fetch("/api/news"),
         fetch("/api/documents"),
         fetch("/api/articles"),
         fetch("/api/events"),
-        fetch("/api/categories")
+        fetch("/api/categories"),
+        fetch("/api/extensions")
       ]);
       
       if (sRes.ok) setShortcuts(await sRes.json());
@@ -59,6 +70,7 @@ export default function App() {
       if (aRes.ok) setArticles(await aRes.json());
       if (eRes.ok) setEvents(await eRes.json());
       if (cRes.ok) setAvailableCategories(await cRes.json());
+      if (exRes.ok) setExtensions(await exRes.json());
     };
     fetchData();
   }, []);
@@ -97,14 +109,15 @@ export default function App() {
   };
 
   const refreshData = async () => {
-    const [sRes, nRes, dRes, aRes, eRes, cRes, uRes] = await Promise.all([
+    const [sRes, nRes, dRes, aRes, eRes, cRes, uRes, exRes] = await Promise.all([
       fetch("/api/shortcuts"),
       fetch("/api/news"),
       fetch("/api/documents"),
       fetch("/api/articles"),
       fetch("/api/events"),
       fetch("/api/categories"),
-      fetch("/api/users")
+      fetch("/api/users"),
+      fetch("/api/extensions")
     ]);
     
     if (sRes.ok) setShortcuts(await sRes.json());
@@ -114,6 +127,7 @@ export default function App() {
     if (eRes.ok) setEvents(await eRes.json());
     if (cRes.ok) setAvailableCategories(await cRes.json());
     if (uRes.ok) setUsers(await uRes.json());
+    if (exRes.ok) setExtensions(await exRes.json());
   };
 
   if (loading) {
@@ -141,10 +155,17 @@ export default function App() {
         <nav className="flex-1 py-6 px-3 space-y-2">
           <NavItem 
             icon={<Home size={20} />} 
-            label="Sistemas" 
+            label="Santa Casa Conecta" 
             active={activeView === 'sistemas'} 
             collapsed={!isSidebarOpen}
             onClick={() => setActiveView('sistemas')}
+          />
+          <NavItem 
+            icon={<Phone size={20} />} 
+            label="Ramais" 
+            active={activeView === 'ramais'} 
+            collapsed={!isSidebarOpen}
+            onClick={() => setActiveView('ramais')}
           />
           <NavItem 
             icon={<FileCheck size={20} />} 
@@ -195,7 +216,7 @@ export default function App() {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
         <header className="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-8 shrink-0">
-          <h2 className="text-xl font-bold text-gray-800 capitalize">{activeView}</h2>
+          <h2 className="text-xl font-bold text-gray-800">{viewTitles[activeView]}</h2>
           
           <div className="flex items-center gap-4">
             <div className="relative hidden md:block">
@@ -297,6 +318,49 @@ export default function App() {
               </motion.div>
             )}
 
+            {activeView === 'ramais' && (
+              <motion.div 
+                key="ramais"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-6"
+              >
+                <div className="flex items-center justify-between mb-8">
+                  <div>
+                    <h2 className="text-3xl font-bold text-gray-800">Lista de Ramais</h2>
+                    <p className="text-gray-500">Consulte os ramais internos da Santa Casa</p>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                  <table className="w-full text-left">
+                    <thead className="bg-gray-50 border-b border-gray-100">
+                      <tr className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                        <th className="px-6 py-4">Nome / Setor</th>
+                        <th className="px-6 py-4">Departamento</th>
+                        <th className="px-6 py-4">Ramal</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {extensions.map(ex => (
+                        <tr key={ex.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-6 py-4 font-bold text-sm text-gray-800">{ex.name}</td>
+                          <td className="px-6 py-4 text-xs text-gray-500 uppercase font-bold">{ex.department}</td>
+                          <td className="px-6 py-4">
+                            <span className="flex items-center gap-2 text-[#c8323c] font-mono font-bold">
+                              <PhoneCall size={14} />
+                              {ex.number}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </motion.div>
+            )}
+
             {activeView === 'sgq' && (
               <motion.div 
                 key="sgq"
@@ -381,6 +445,7 @@ export default function App() {
                 events={events}
                 users={users}
                 categories={availableCategories}
+                extensions={extensions}
                 onRefresh={refreshData}
                 onReorder={handleReorder}
                 onReorderCategories={async (newOrder) => {
@@ -518,7 +583,7 @@ function LoginForm({ onSuccess }: { onSuccess: (u: UserProfile) => void }) {
   );
 }
 
-function AdminPanel({ user, shortcuts, news, documents, articles, events, users, categories, onRefresh, onReorder, onReorderCategories }: { 
+function AdminPanel({ user, shortcuts, news, documents, articles, events, users, categories, extensions, onRefresh, onReorder, onReorderCategories }: { 
   user: UserProfile, 
   shortcuts: Shortcut[], 
   news: NewsItem[], 
@@ -527,17 +592,19 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
   events: HospitalEvent[],
   users: UserProfile[],
   categories: string[],
+  extensions: PhoneExtension[],
   onRefresh: () => void,
   onReorder: (s: Shortcut[]) => void,
   onReorderCategories: (c: string[]) => void
 }) {
-  const [tab, setTab] = useState<'shortcuts' | 'news' | 'categories' | 'sgq' | 'articles' | 'events' | 'users'>('shortcuts');
+  const [tab, setTab] = useState<'shortcuts' | 'news' | 'categories' | 'sgq' | 'articles' | 'events' | 'users' | 'ramais'>('shortcuts');
   const [editingShortcut, setEditingShortcut] = useState<Partial<Shortcut> | null>(null);
   const [editingNews, setEditingNews] = useState<Partial<NewsItem> | null>(null);
   const [editingDocument, setEditingDocument] = useState<Partial<SGQDocument> | null>(null);
   const [editingArticle, setEditingArticle] = useState<Partial<Article> | null>(null);
   const [editingEvent, setEditingEvent] = useState<Partial<HospitalEvent> | null>(null);
   const [editingUser, setEditingUser] = useState<Partial<UserProfile & { password?: string }> | null>(null);
+  const [editingExtension, setEditingExtension] = useState<Partial<PhoneExtension> | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [uploading, setUploading] = useState(false);
 
@@ -703,6 +770,25 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
     }
   };
 
+  const handleSaveExtension = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingExtension) return;
+    const method = editingExtension.id ? "PUT" : "POST";
+    const url = editingExtension.id ? `/api/extensions/${editingExtension.id}` : "/api/extensions";
+    const res = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(editingExtension)
+    });
+    if (res.ok) { setEditingExtension(null); onRefresh(); }
+  };
+
+  const handleDeleteExtension = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir este ramal?")) return;
+    const res = await fetch(`/api/extensions/${id}`, { method: "DELETE" });
+    if (res.ok) onRefresh();
+  };
+
   const handleAddCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCategoryName.trim()) return;
@@ -774,6 +860,15 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
           )}
         >
           Artigos
+        </button>
+        <button 
+          onClick={() => setTab('ramais')}
+          className={cn(
+            "px-6 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap",
+            tab === 'ramais' ? "bg-[#c8323c] text-white shadow-lg shadow-red-900/20" : "text-gray-400 hover:bg-gray-50"
+          )}
+        >
+          Ramais
         </button>
         <button 
           onClick={() => setTab('events')}
@@ -966,6 +1061,62 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
               </Reorder.Item>
             ))}
           </Reorder.Group>
+        </div>
+      )}
+
+      {tab === 'ramais' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-gray-800">Gerenciar Ramais</h2>
+              <p className="text-sm text-gray-500">Cadastre e organize os ramais internos</p>
+            </div>
+            <button 
+              onClick={() => setEditingExtension({ name: '', number: '', department: '' })}
+              className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl text-sm font-bold hover:bg-green-700 transition-all shadow-lg shadow-green-900/20"
+            >
+              <Plus size={18} />
+              <span>Novo Ramal</span>
+            </button>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <table className="w-full text-left">
+              <thead className="bg-gray-50 border-b border-gray-100">
+                <tr className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-4">Nome / Setor</th>
+                  <th className="px-6 py-4">Departamento</th>
+                  <th className="px-6 py-4">Ramal</th>
+                  <th className="px-6 py-4 text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {extensions.map(ex => (
+                  <tr key={ex.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 font-bold text-sm text-gray-800">{ex.name}</td>
+                    <td className="px-6 py-4 text-xs text-gray-500 uppercase font-bold">{ex.department}</td>
+                    <td className="px-6 py-4 font-mono font-bold text-[#c8323c]">{ex.number}</td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button 
+                          onClick={() => setEditingExtension(ex)}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        >
+                          <Edit size={18} />
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteExtension(ex.id)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -1499,6 +1650,68 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
                 <button type="submit" className="w-full py-4 bg-[#c8323c] text-white rounded-xl font-bold shadow-lg shadow-red-900/20 hover:bg-[#b02a33] transition-all flex items-center justify-center gap-2">
                   <Save size={20} />
                   <span>Salvar Usuário</span>
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+
+        {editingExtension && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+              onClick={() => setEditingExtension(null)}
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
+              className="relative bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden"
+            >
+              <form onSubmit={handleSaveExtension} className="p-8 space-y-6">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xl font-bold text-gray-800">{editingExtension.id ? 'Editar Ramal' : 'Novo Ramal'}</h3>
+                  <button type="button" onClick={() => setEditingExtension(null)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Nome / Setor</label>
+                    <input 
+                      type="text" 
+                      value={editingExtension.name} 
+                      onChange={e => setEditingExtension({...editingExtension, name: e.target.value})} 
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none" 
+                      placeholder="Ex: Recepção Central"
+                      required 
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Departamento</label>
+                    <input 
+                      type="text" 
+                      value={editingExtension.department} 
+                      onChange={e => setEditingExtension({...editingExtension, department: e.target.value})} 
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none" 
+                      placeholder="Ex: ATENDIMENTO"
+                      required 
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Número do Ramal</label>
+                    <input 
+                      type="text" 
+                      value={editingExtension.number} 
+                      onChange={e => setEditingExtension({...editingExtension, number: e.target.value})} 
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none" 
+                      placeholder="Ex: 2001"
+                      required 
+                    />
+                  </div>
+                </div>
+
+                <button type="submit" className="w-full py-4 bg-[#c8323c] text-white rounded-xl font-bold shadow-lg shadow-red-900/20 hover:bg-[#b02a33] transition-all flex items-center justify-center gap-2">
+                  <Save size={20} />
+                  <span>Salvar Ramal</span>
                 </button>
               </form>
             </motion.div>
