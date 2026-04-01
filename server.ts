@@ -186,9 +186,6 @@ async function startServer() {
     res.json({ success: true });
   });
 
-  app.get("/api/documents", (req, res) => res.json(documents));
-  app.get("/api/articles", (req, res) => res.json(articles));
-  app.get("/api/events", (req, res) => res.json(events));
   app.get("/api/categories", (req, res) => res.json(categories));
 
   // --- File Upload Route ---
@@ -312,7 +309,9 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`🚀 Servidor Intranet rodando em http://0.0.0.0:${PORT}`);
+    console.log(`📡 Acesso local: http://localhost:${PORT}`);
+    console.log(`🌐 Ambiente: ${process.env.NODE_ENV || 'development'}`);
   });
 }
 
