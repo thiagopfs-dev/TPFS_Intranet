@@ -167,7 +167,7 @@ export default function App() {
     <div className="min-h-screen bg-[#f3f4f6] flex overflow-hidden relative">
       {/* Sidebar */}
       <aside className={cn(
-        "bg-[#1a1a1a] text-white transition-all duration-300 flex flex-col z-50 fixed md:relative h-full overflow-hidden",
+        "bg-[#1a1a1a] text-white transition-all duration-300 flex flex-col z-50 fixed top-0 left-0 h-full overflow-hidden",
         isSidebarOpen ? "w-80 translate-x-0" : "w-80 md:w-28 -translate-x-full md:translate-x-0"
       )}>
         <div className="p-6 flex items-center gap-4 border-b border-white/10 overflow-hidden min-h-[88px]">
@@ -246,7 +246,10 @@ export default function App() {
       )}
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden pb-16 md:pb-0">
+      <div className={cn(
+        "flex-1 flex flex-col overflow-hidden pb-16 md:pb-0 transition-all duration-300",
+        isSidebarOpen ? "md:ml-80" : "md:ml-28"
+      )}>
         {/* Header */}
         <header className="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-4 md:px-8 shrink-0 relative">
           <div className="flex items-center gap-3">
