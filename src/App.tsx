@@ -36,6 +36,7 @@ export default function App() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   const [logoUrl, setLogoUrl] = useState<string>("");
+  const [searchTerm, setSearchTerm] = useState("");
   
   const [activeView, setActiveView] = useState<View>('sistemas');
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 768);
@@ -167,64 +168,60 @@ export default function App() {
       {/* Sidebar */}
       <aside className={cn(
         "bg-[#1a1a1a] text-white transition-all duration-300 flex flex-col z-50 fixed md:relative h-full overflow-hidden",
-        isSidebarOpen ? "w-64 translate-x-0" : "w-64 md:w-20 -translate-x-full md:translate-x-0"
+        isSidebarOpen ? "w-80 translate-x-0" : "w-80 md:w-28 -translate-x-full md:translate-x-0"
       )}>
-        <div className="p-6 flex items-center gap-3 border-b border-white/10 overflow-hidden">
-          {logoUrl ? (
-            <img src={logoUrl} alt="Logo" className="w-8 h-8 object-contain shrink-0" />
-          ) : (
-            <div className="w-8 h-8 bg-[#c8323c] rounded flex items-center justify-center shrink-0">
-              <ShieldCheck size={20} />
-            </div>
-          )}
-          {isSidebarOpen && <span className="font-bold text-lg tracking-tight whitespace-nowrap">SC Conecta</span>}
+        <div className="p-6 flex items-center gap-4 border-b border-white/10 overflow-hidden min-h-[88px]">
+          <div className="w-10 h-10 bg-[#c8323c] rounded flex items-center justify-center shrink-0">
+            <ShieldCheck size={24} />
+          </div>
+          {isSidebarOpen && <span className="font-bold text-xl tracking-tight whitespace-nowrap">Santa Casa Conecta</span>}
         </div>
 
-        <nav className="flex-1 py-6 px-3 space-y-2">
+        <nav className="flex-1 py-8 px-4 space-y-3">
           <NavItem 
-            icon={<Home size={20} />} 
-            label="Santa Casa Conecta" 
+            icon={<Home size={24} />} 
+            label="Início" 
             active={activeView === 'sistemas'} 
             collapsed={!isSidebarOpen}
-            onClick={() => setActiveView('sistemas')}
+            onClick={() => { setActiveView('sistemas'); setSearchTerm(""); }}
           />
           <NavItem 
-            icon={<Phone size={20} />} 
+            icon={<Phone size={24} />} 
             label="Ramais" 
             active={activeView === 'ramais'} 
             collapsed={!isSidebarOpen}
-            onClick={() => setActiveView('ramais')}
+            onClick={() => { setActiveView('ramais'); setSearchTerm(""); }}
           />
           <NavItem 
-            icon={<FileCheck size={20} />} 
+            icon={<FileCheck size={24} />} 
             label="Documentos SGQ" 
             active={activeView === 'sgq'} 
             collapsed={!isSidebarOpen}
-            onClick={() => setActiveView('sgq')}
+            onClick={() => { setActiveView('sgq'); setSearchTerm(""); }}
           />
           <NavItem 
-            icon={<BookOpen size={20} />} 
+            icon={<BookOpen size={24} />} 
             label="Artigos" 
             active={activeView === 'artigos'} 
             collapsed={!isSidebarOpen}
-            onClick={() => setActiveView('artigos')}
+            onClick={() => { setActiveView('artigos'); setSearchTerm(""); }}
           />
           <NavItem 
-            icon={<Calendar size={20} />} 
+            icon={<Calendar size={24} />} 
             label="Eventos" 
             active={activeView === 'eventos'} 
             collapsed={!isSidebarOpen}
-            onClick={() => setActiveView('eventos')}
+            onClick={() => { setActiveView('eventos'); setSearchTerm(""); }}
           />
           
           {user && (user.role === 'admin' || user.role === 'editor') && (
-            <div className="pt-6 mt-6 border-t border-white/10">
+            <div className="pt-8 mt-8 border-t border-white/10">
               <NavItem 
-                icon={<Settings size={20} />} 
+                icon={<Settings size={24} />} 
                 label="Administração" 
                 active={activeView === 'admin'} 
                 collapsed={!isSidebarOpen}
-                onClick={() => setActiveView('admin')}
+                onClick={() => { setActiveView('admin'); setSearchTerm(""); }}
               />
             </div>
           )}
@@ -251,7 +248,7 @@ export default function App() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden pb-16 md:pb-0">
         {/* Header */}
-        <header className="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-4 md:px-8 shrink-0">
+        <header className="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-4 md:px-8 shrink-0 relative">
           <div className="flex items-center gap-3">
             <button 
               onClick={() => setIsSidebarOpen(true)}
@@ -259,19 +256,23 @@ export default function App() {
             >
               <Menu size={20} />
             </button>
-            <h2 className="text-lg md:text-xl font-bold text-gray-800">{viewTitles[activeView]}</h2>
+            {activeView !== 'sistemas' && (
+              <h2 className="text-lg md:text-xl font-bold text-gray-800">{viewTitles[activeView]}</h2>
+            )}
+          </div>
+
+          {/* Logo positioned closer to sidebar (roughly where the green mark was) */}
+          <div className="absolute left-[25%] top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none">
+            {logoUrl ? (
+              <img src={logoUrl} alt="Logo" className="max-h-10 w-auto object-contain" />
+            ) : (
+              <div className="w-10 h-10 bg-[#c8323c] rounded flex items-center justify-center shadow-lg shadow-red-900/20">
+                <ShieldCheck size={24} className="text-white" />
+              </div>
+            )}
           </div>
           
           <div className="flex items-center gap-4">
-            <div className="relative hidden md:block">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-              <input 
-                type="text" 
-                placeholder="Pesquisar..." 
-                className="pl-10 pr-4 py-2 bg-gray-100 border-transparent focus:bg-white focus:border-gray-200 rounded-full text-sm transition-all outline-none w-64"
-              />
-            </div>
-
             {user ? (
               <div className="flex items-center gap-4 pl-4 border-l border-gray-200">
                 <div className="text-right">
@@ -370,10 +371,20 @@ export default function App() {
                 exit={{ opacity: 0, x: -20 }}
                 className="space-y-6"
               >
-                <div className="flex items-center justify-between mb-8">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
                   <div>
                     <h2 className="text-3xl font-bold text-gray-800">Lista de Ramais</h2>
                     <p className="text-gray-500">Consulte os ramais internos da Santa Casa</p>
+                  </div>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <input 
+                      type="text" 
+                      placeholder="Pesquisar ramal ou setor..." 
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10 pr-4 py-2 bg-white border border-gray-200 focus:border-[#c8323c] rounded-xl text-sm transition-all outline-none w-full md:w-80 shadow-sm"
+                    />
                   </div>
                 </div>
 
@@ -387,7 +398,11 @@ export default function App() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {extensions.map(ex => (
+                      {extensions.filter(ex => 
+                        ex.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                        ex.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        ex.number.includes(searchTerm)
+                      ).map(ex => (
                         <tr key={ex.id} className="hover:bg-gray-50 transition-colors">
                           <td className="px-6 py-4 font-bold text-sm text-gray-800">{ex.name}</td>
                           <td className="px-6 py-4 text-xs text-gray-500 uppercase font-bold">{ex.department}</td>
@@ -410,20 +425,42 @@ export default function App() {
                 key="sgq"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"
+                className="space-y-6"
               >
-                <table className="w-full text-left">
-                  <thead className="bg-gray-50 border-b border-gray-100">
-                    <tr className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                      <th className="px-6 py-4">Código</th>
-                      <th className="px-6 py-4">Título do Documento</th>
-                      <th className="px-6 py-4">Versão</th>
-                      <th className="px-6 py-4">Categoria</th>
-                      <th className="px-6 py-4 text-right">Ação</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {documents.map(doc => (
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                  <div>
+                    <h2 className="text-3xl font-bold text-gray-800">Documentos SGQ</h2>
+                    <p className="text-gray-500">Gestão da Qualidade e Processos</p>
+                  </div>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <input 
+                      type="text" 
+                      placeholder="Pesquisar documentos..." 
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10 pr-4 py-2 bg-white border border-gray-200 focus:border-[#c8323c] rounded-xl text-sm transition-all outline-none w-full md:w-80 shadow-sm"
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                  <table className="w-full text-left">
+                    <thead className="bg-gray-50 border-b border-gray-100">
+                      <tr className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                        <th className="px-6 py-4">Código</th>
+                        <th className="px-6 py-4">Título do Documento</th>
+                        <th className="px-6 py-4">Versão</th>
+                        <th className="px-6 py-4">Categoria</th>
+                        <th className="px-6 py-4 text-right">Ação</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {documents.filter(doc => 
+                        doc.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                        doc.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        doc.category.toLowerCase().includes(searchTerm.toLowerCase())
+                      ).map(doc => (
                       <tr key={doc.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4 font-mono text-xs text-[#c8323c]">{doc.code}</td>
                         <td className="px-6 py-4 font-bold text-sm text-gray-800">{doc.title}</td>
@@ -438,44 +475,89 @@ export default function App() {
                     ))}
                   </tbody>
                 </table>
-              </motion.div>
+              </div>
+            </motion.div>
             )}
 
             {activeView === 'artigos' && (
-              <motion.div key="artigos" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {articles.map(article => (
-                  <div key={article.id} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-                    <p className="text-[10px] font-bold text-[#c8323c] uppercase mb-2">{article.date}</p>
-                    <h3 className="text-lg font-bold text-gray-800 mb-3">{article.title}</h3>
-                    <p className="text-sm text-gray-500 mb-4 line-clamp-3">{article.summary}</p>
-                    <div className="flex items-center justify-between pt-4 border-t border-gray-50">
-                      <span className="text-xs text-gray-400">Por {article.author}</span>
-                      <button className="text-xs font-bold text-[#c8323c]">Ler mais</button>
-                    </div>
+              <motion.div key="artigos" className="space-y-8">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                  <div>
+                    <h2 className="text-3xl font-bold text-gray-800">Artigos</h2>
+                    <p className="text-gray-500">Conhecimento e atualizações para a equipe</p>
                   </div>
-                ))}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <input 
+                      type="text" 
+                      placeholder="Pesquisar artigos..." 
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10 pr-4 py-2 bg-white border border-gray-200 focus:border-[#c8323c] rounded-xl text-sm transition-all outline-none w-full md:w-80 shadow-sm"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {articles.filter(article => 
+                    article.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                    article.summary.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    article.author.toLowerCase().includes(searchTerm.toLowerCase())
+                  ).map(article => (
+                    <div key={article.id} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                      <p className="text-[10px] font-bold text-[#c8323c] uppercase mb-2">{article.date}</p>
+                      <h3 className="text-lg font-bold text-gray-800 mb-3">{article.title}</h3>
+                      <p className="text-sm text-gray-500 mb-4 line-clamp-3">{article.summary}</p>
+                      <div className="flex items-center justify-between pt-4 border-t border-gray-50">
+                        <span className="text-xs text-gray-400">Por {article.author}</span>
+                        <button className="text-xs font-bold text-[#c8323c]">Ler mais</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </motion.div>
             )}
 
             {activeView === 'eventos' && (
-              <motion.div key="eventos" className="space-y-4">
-                {events.map(event => (
-                  <div key={event.id} className="bg-white rounded-2xl p-6 flex items-center gap-6 shadow-sm border border-gray-100">
-                    <div className="w-16 h-16 bg-red-50 rounded-xl flex flex-col items-center justify-center text-[#c8323c] shrink-0">
-                      <span className="text-lg font-bold leading-none">{event.date.split('-')[2]}</span>
-                      <span className="text-[10px] font-bold uppercase">ABR</span>
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-bold text-gray-800">{event.title}</h3>
-                      <p className="text-sm text-gray-500">{event.description}</p>
-                      <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
-                        <span className="flex items-center gap-1"><Calendar size={12} /> {event.date}</span>
-                        <span className="flex items-center gap-1"><Home size={12} /> {event.location}</span>
-                      </div>
-                    </div>
-                    <button className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-bold text-gray-600 transition-colors">Inscrever-se</button>
+              <motion.div key="eventos" className="space-y-8">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                  <div>
+                    <h2 className="text-3xl font-bold text-gray-800">Eventos</h2>
+                    <p className="text-gray-500">Acompanhe a agenda da Santa Casa</p>
                   </div>
-                ))}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <input 
+                      type="text" 
+                      placeholder="Pesquisar eventos..." 
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10 pr-4 py-2 bg-white border border-gray-200 focus:border-[#c8323c] rounded-xl text-sm transition-all outline-none w-full md:w-80 shadow-sm"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  {events.filter(event => 
+                    event.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                    event.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    event.location.toLowerCase().includes(searchTerm.toLowerCase())
+                  ).map(event => (
+                    <div key={event.id} className="bg-white rounded-2xl p-6 flex items-center gap-6 shadow-sm border border-gray-100">
+                      <div className="w-16 h-16 bg-red-50 rounded-xl flex flex-col items-center justify-center text-[#c8323c] shrink-0">
+                        <span className="text-lg font-bold leading-none">{event.date.split('-')[2]}</span>
+                        <span className="text-[10px] font-bold uppercase">ABR</span>
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-bold text-gray-800">{event.title}</h3>
+                        <p className="text-sm text-gray-500">{event.description}</p>
+                        <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
+                          <span className="flex items-center gap-1"><Calendar size={12} /> {event.date}</span>
+                          <span className="flex items-center gap-1"><Home size={12} /> {event.location}</span>
+                        </div>
+                      </div>
+                      <button className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-bold text-gray-600 transition-colors">Inscrever-se</button>
+                    </div>
+                  ))}
+                </div>
               </motion.div>
             )}
 
@@ -511,28 +593,28 @@ export default function App() {
           <MobileNavItem 
             icon={<Home size={24} />} 
             active={activeView === 'sistemas'} 
-            onClick={() => setActiveView('sistemas')}
+            onClick={() => { setActiveView('sistemas'); setSearchTerm(""); }}
           />
           <MobileNavItem 
             icon={<Phone size={24} />} 
             active={activeView === 'ramais'} 
-            onClick={() => setActiveView('ramais')}
+            onClick={() => { setActiveView('ramais'); setSearchTerm(""); }}
           />
           <MobileNavItem 
             icon={<FileCheck size={24} />} 
             active={activeView === 'sgq'} 
-            onClick={() => setActiveView('sgq')}
+            onClick={() => { setActiveView('sgq'); setSearchTerm(""); }}
           />
           <MobileNavItem 
             icon={<BookOpen size={24} />} 
             active={activeView === 'artigos'} 
-            onClick={() => setActiveView('artigos')}
+            onClick={() => { setActiveView('artigos'); setSearchTerm(""); }}
           />
           {user && (user.role === 'admin' || user.role === 'editor') && (
             <MobileNavItem 
               icon={<Settings size={24} />} 
               active={activeView === 'admin'} 
-              onClick={() => setActiveView('admin')}
+              onClick={() => { setActiveView('admin'); setSearchTerm(""); }}
             />
           )}
         </div>
@@ -557,11 +639,15 @@ export default function App() {
             >
               <div className="p-10">
                 <div className="flex justify-center mb-8">
-                  <div className="w-16 h-16 bg-[#c8323c] rounded-2xl flex items-center justify-center shadow-lg shadow-red-900/20">
-                    <ShieldCheck size={32} className="text-white" />
-                  </div>
+                  {logoUrl ? (
+                    <img src={logoUrl} alt="Logo" className="max-h-24 w-auto object-contain" />
+                  ) : (
+                    <div className="w-16 h-16 bg-[#c8323c] rounded-2xl flex items-center justify-center shadow-lg shadow-red-900/20">
+                      <ShieldCheck size={32} className="text-white" />
+                    </div>
+                  )}
                 </div>
-                <h3 className="text-2xl font-bold text-center text-gray-800 mb-2">Santa Casa Conecta</h3>
+                {!logoUrl && <h3 className="text-2xl font-bold text-center text-gray-800 mb-2">Santa Casa Conecta</h3>}
                 <p className="text-center text-gray-500 text-sm mb-8">Entre com suas credenciais de colaborador</p>
                 
                 <LoginForm onSuccess={(u) => { setUser(u); setIsLoginOpen(false); }} />
