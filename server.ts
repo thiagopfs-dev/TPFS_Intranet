@@ -269,17 +269,6 @@ async function startServer() {
     res.json({ success: true });
   });
 
-  app.get("/api/me", (req, res) => {
-    const token = req.cookies.token;
-    if (!token) return res.status(401).json({ error: "Não logado" });
-    try {
-      const decoded = jwt.verify(token, JWT_SECRET);
-      res.json(decoded);
-    } catch (err) {
-      res.status(401).json({ error: "Sessão expirada" });
-    }
-  });
-
   // --- Data Routes ---
   app.get("/api/shortcuts", (req, res) => {
     const data = db.prepare("SELECT * FROM shortcuts ORDER BY \"order\" ASC").all();
