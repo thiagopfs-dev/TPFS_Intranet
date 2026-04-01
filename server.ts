@@ -115,7 +115,8 @@ if (roleCount.count === 0) {
     ramais: true,
     users: true,
     settings: true,
-    roles: true
+    roles: true,
+    categories: true
   };
   
   const editorPerms = {
@@ -127,7 +128,8 @@ if (roleCount.count === 0) {
     ramais: false, // User explicitly asked to remove this
     users: false,
     settings: false,
-    roles: false
+    roles: false,
+    categories: false
   };
   
   const userPerms = {
@@ -139,13 +141,27 @@ if (roleCount.count === 0) {
     ramais: false,
     users: false,
     settings: false,
-    roles: false
+    roles: false,
+    categories: false
   };
 
   insertRole.run("admin", JSON.stringify(adminPerms));
   insertRole.run("editor", JSON.stringify(editorPerms));
   insertRole.run("user", JSON.stringify(userPerms));
 }
+
+// Migration: ensure all roles have 'categories' permission defined
+const allRoles = db.prepare("SELECT * FROM roles").all() as any[];
+const updateRole = db.prepare("UPDATE roles SET permissions = ? WHERE name = ?");
+allRoles.forEach(role => {
+  try {
+    const perms = JSON.parse(role.permissions);
+    if (perms.categories === undefined) {
+      perms.categories = role.name === 'admin' ? true : false;
+      updateRole.run(JSON.stringify(perms), role.name);
+    }
+  } catch (e) {}
+});
 
 const userCount = db.prepare("SELECT count(*) as count FROM users").get() as any;
 if (userCount.count === 0) {
@@ -395,7 +411,7 @@ async function startServer() {
   });
 
   // --- Category Routes ---
-  app.post("/api/categories", authenticate, checkPermission('shortcuts'), (req: any, res) => {
+  app.post("/api/categories", authenticate, checkPermission('categories'), (req: any, res) => {
     const { name } = req.body;
     if (!name) return res.status(400).json({ error: "Nome da categoria é obrigatório" });
     try {
@@ -407,7 +423,7 @@ async function startServer() {
     res.json(data.map(c => c.name));
   });
 
-  app.post("/api/categories/reorder", authenticate, checkPermission('shortcuts'), (req: any, res) => {
+  app.post("/api/categories/reorder", authenticate, checkPermission('categories'), (req: any, res) => {
     const { newOrder } = req.body; // Array of names
     const update = db.prepare("UPDATE categories SET \"order\" = ? WHERE name = ?");
     const transaction = db.transaction((names) => {
@@ -417,7 +433,7 @@ async function startServer() {
     res.json({ success: true });
   });
 
-  app.delete("/api/categories/:name", authenticate, checkPermission('shortcuts'), (req: any, res) => {
+  app.delete("/api/categories/:name", authenticate, checkPermission('categories'), (req: any, res) => {
     const { name } = req.params;
     db.prepare("DELETE FROM categories WHERE name = ?").run(name);
     const data = db.prepare("SELECT name FROM categories ORDER BY \"order\" ASC").all() as any[];

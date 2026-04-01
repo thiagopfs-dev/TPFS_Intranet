@@ -893,7 +893,7 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
     if (user.role === 'admin') return tabs;
     
     return tabs.filter(t => {
-      if (t.id === 'categories') return user.permissions?.shortcuts;
+      if (t.id === 'categories') return user.permissions?.categories;
       if (t.id === 'roles') return user.permissions?.roles;
       return user.permissions?.[t.id as keyof Permissions];
     });
@@ -1999,7 +1999,7 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
               <p className="text-sm text-gray-500">Gerencie os perfis e suas permissões</p>
             </div>
             <button 
-              onClick={() => setEditingRole({ name: '', permissions: { shortcuts: false, news: false, sgq: false, articles: false, events: false, ramais: false, users: false, settings: false, roles: false } })}
+              onClick={() => setEditingRole({ name: '', permissions: { shortcuts: false, news: false, sgq: false, articles: false, events: false, ramais: false, users: false, settings: false, roles: false, categories: false } })}
               className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl text-sm font-bold hover:bg-green-700 transition-all shadow-lg shadow-green-900/20"
             >
               <Plus size={18} />

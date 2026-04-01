@@ -10,6 +10,7 @@ export interface Permissions {
   users: boolean;
   settings: boolean;
   roles: boolean;
+  categories: boolean;
 }
 
 export interface Role {
