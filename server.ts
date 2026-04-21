@@ -51,7 +51,8 @@ db.exec(`
     code TEXT,
     version TEXT,
     url TEXT,
-    category TEXT
+    category TEXT,
+    date TEXT
   );
 
   CREATE TABLE IF NOT EXISTS articles (
@@ -163,6 +164,13 @@ allRoles.forEach(role => {
   } catch (e) {}
 });
 
+// Migration: ensure documents table has date column
+try {
+  db.prepare("ALTER TABLE documents ADD COLUMN date TEXT").run();
+} catch (e) {
+  // Column might already exist
+}
+
 const userCount = db.prepare("SELECT count(*) as count FROM users").get() as any;
 if (userCount.count === 0) {
   const insertUser = db.prepare("INSERT INTO users (id, username, password, role, displayName, email) VALUES (?, ?, ?, ?, ?, ?)");
@@ -189,6 +197,11 @@ if (userCount.count === 0) {
   insertExtension.run("e1", "Recepção Central", "1000", "Atendimento");
   insertExtension.run("e2", "Recursos Humanos", "1020", "Administrativo");
   insertExtension.run("e3", "TI - Suporte", "1050", "Tecnologia");
+
+  const insertDoc = db.prepare("INSERT INTO documents (id, title, code, version, url, category, date) VALUES (?, ?, ?, ?, ?, ?, ?)");
+  insertDoc.run("d1", "Manual de Integração", "MAN-001", "1.0", "#", "RH", "2024-01-15");
+  insertDoc.run("d2", "Protocolo de Sepse", "PRO-002", "2.1", "#", "Enfermagem", "2024-02-10");
+  insertDoc.run("d3", "POP - Higienização das Mãos", "POP-005", "1.5", "#", "CCIH", "2024-02-20");
 }
 
 const ensureSettings = db.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)");
@@ -300,14 +313,16 @@ async function startServer() {
     res.json(data);
   });
   app.post("/api/documents", authenticate, checkPermission('sgq'), (req: any, res) => {
-    const { title, code, version, url, category } = req.body;
+    const { title, code, version, url, category, date } = req.body;
     const id = Date.now().toString();
-    db.prepare("INSERT INTO documents (id, title, code, version, url, category) VALUES (?, ?, ?, ?, ?, ?)").run(id, title, code, version, url, category);
-    res.json({ id, title, code, version, url, category });
+    const docDate = date || new Date().toISOString().split('T')[0];
+    db.prepare("INSERT INTO documents (id, title, code, version, url, category, date) VALUES (?, ?, ?, ?, ?, ?, ?)").run(id, title, code, version, url, category, docDate);
+    res.json({ id, title, code, version, url, category, date: docDate });
   });
   app.put("/api/documents/:id", authenticate, checkPermission('sgq'), (req: any, res) => {
-    const { title, code, version, url, category } = req.body;
-    db.prepare("UPDATE documents SET title = ?, code = ?, version = ?, url = ?, category = ? WHERE id = ?").run(title, code, version, url, category, req.params.id);
+    const { title, code, version, url, category, date } = req.body;
+    const docDate = date || new Date().toISOString().split('T')[0];
+    db.prepare("UPDATE documents SET title = ?, code = ?, version = ?, url = ?, category = ?, date = ? WHERE id = ?").run(title, code, version, url, category, docDate, req.params.id);
     res.json({ success: true });
   });
   app.delete("/api/documents/:id", authenticate, checkPermission('sgq'), (req: any, res) => {

@@ -5,7 +5,8 @@ import {
   LayoutDashboard, FileText, User as UserIcon, LogIn,
   BookOpen, Calendar, FileCheck, Menu, X, ChevronRight,
   Home, Info, ShieldCheck, GripVertical, Save, Image as ImageIcon,
-  Link as LinkIcon, Type, Layers, Phone, PhoneCall, Megaphone
+  Link as LinkIcon, Type, Layers, Phone, PhoneCall, Megaphone,
+  Folder, ChevronLeft
 } from "lucide-react";
 import { motion, AnimatePresence, Reorder } from "motion/react";
 import { 
@@ -39,6 +40,7 @@ export default function App() {
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   const [logoUrl, setLogoUrl] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentFolder, setCurrentFolder] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState({ message: "", enabled: false });
   const [showAnnouncement, setShowAnnouncement] = useState(false);
   
@@ -46,6 +48,11 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 768);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  const sgqFolders = useMemo(() => {
+    const categories = new Set(documents.map(doc => doc.category));
+    return Array.from(categories).sort();
+  }, [documents]);
 
   // Responsive sidebar
   useEffect(() => {
@@ -188,57 +195,62 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#c8323c]"></div>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#f3f4f6] flex overflow-hidden relative">
+    <div className="min-h-screen bg-surface flex overflow-hidden relative">
       {/* Sidebar */}
       <aside className={cn(
-        "bg-[#1a1a1a] text-white transition-all duration-300 flex flex-col z-50 fixed top-0 left-0 h-full overflow-hidden",
+        "bg-slate-100 transition-all duration-500 flex flex-col z-50 fixed top-0 left-0 h-full overflow-hidden border-r border-slate-200 shadow-2xl",
         isSidebarOpen ? "w-80 translate-x-0" : "w-80 md:w-28 -translate-x-full md:translate-x-0"
       )}>
-        <div className="p-6 flex items-center gap-4 border-b border-white/10 overflow-hidden min-h-[88px]">
-          <div className="w-10 h-10 bg-[#c8323c] rounded flex items-center justify-center shrink-0">
-            <ShieldCheck size={24} />
+        <div className="p-8 flex items-center gap-4 border-b border-slate-200 overflow-hidden min-h-[100px] bg-slate-50/50">
+          <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center shrink-0 shadow-xl shadow-primary/20">
+            <ShieldCheck size={28} className="text-white" />
           </div>
-          {isSidebarOpen && <span className="font-bold text-xl tracking-tight whitespace-nowrap">Santa Casa Conecta</span>}
+          {isSidebarOpen && (
+            <div className="flex flex-col">
+              <span className="font-black text-xl tracking-tight text-slate-900 leading-none">Santa Casa</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Hospitalar</span>
+            </div>
+          )}
         </div>
 
-        <nav className="flex-1 py-8 px-4 space-y-3">
+        <nav className="flex-1 py-10 px-6 space-y-4 overflow-y-auto">
           <NavItem 
-            icon={<Home size={24} />} 
+            icon={<Home size={22} />} 
             label="Início" 
             active={activeView === 'sistemas'} 
             collapsed={!isSidebarOpen}
             onClick={() => { setActiveView('sistemas'); setSearchTerm(""); }}
           />
           <NavItem 
-            icon={<Phone size={24} />} 
+            icon={<Phone size={22} />} 
             label="Ramais" 
             active={activeView === 'ramais'} 
             collapsed={!isSidebarOpen}
             onClick={() => { setActiveView('ramais'); setSearchTerm(""); }}
           />
           <NavItem 
-            icon={<FileCheck size={24} />} 
+            icon={<FileCheck size={22} />} 
             label="Documentos SGQ" 
             active={activeView === 'sgq'} 
             collapsed={!isSidebarOpen}
             onClick={() => { setActiveView('sgq'); setSearchTerm(""); }}
           />
           <NavItem 
-            icon={<BookOpen size={24} />} 
+            icon={<BookOpen size={22} />} 
             label="Artigos" 
             active={activeView === 'artigos'} 
             collapsed={!isSidebarOpen}
             onClick={() => { setActiveView('artigos'); setSearchTerm(""); }}
           />
           <NavItem 
-            icon={<Calendar size={24} />} 
+            icon={<Calendar size={22} />} 
             label="Eventos" 
             active={activeView === 'eventos'} 
             collapsed={!isSidebarOpen}
@@ -246,9 +258,9 @@ export default function App() {
           />
           
           {user && (user.role === 'admin' || Object.values(user.permissions || {}).some(v => v)) && (
-            <div className="pt-8 mt-8 border-t border-white/10">
+            <div className="pt-10 mt-10 border-t border-slate-200">
               <NavItem 
-                icon={<Settings size={24} />} 
+                icon={<Settings size={22} />} 
                 label="Administração" 
                 active={activeView === 'admin'} 
                 collapsed={!isSidebarOpen}
@@ -258,12 +270,12 @@ export default function App() {
           )}
         </nav>
 
-        <div className="p-4 border-t border-white/10 hidden md:block">
+        <div className="p-6 border-t border-slate-200 hidden md:block bg-slate-50/50">
           <button 
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="w-full p-2 hover:bg-white/5 rounded-lg flex items-center justify-center transition-colors"
+            className="w-full p-4 hover:bg-white rounded-2xl flex items-center justify-center transition-all text-slate-400 hover:text-primary shadow-sm hover:shadow-md"
           >
-            {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
+            {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
         </div>
       </aside>
@@ -282,58 +294,84 @@ export default function App() {
         isSidebarOpen ? "md:ml-80" : "md:ml-28"
       )}>
         {/* Header */}
-        <header className="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-4 md:px-8 shrink-0 relative">
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={() => setIsSidebarOpen(true)}
-              className="p-2 hover:bg-gray-100 rounded-lg md:hidden"
-            >
-              <Menu size={20} />
-            </button>
-            {activeView !== 'sistemas' && (
-              <h2 className="text-lg md:text-xl font-bold text-gray-800">{viewTitles[activeView]}</h2>
-            )}
-          </div>
-
-          {/* Logo positioned closer to sidebar (roughly where the green mark was) */}
-          <div className="absolute left-[25%] top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none">
-            {logoUrl ? (
-              <img src={logoUrl} alt="Logo" className="max-h-10 w-auto object-contain" />
-            ) : (
-              <div className="w-10 h-10 bg-[#c8323c] rounded flex items-center justify-center shadow-lg shadow-red-900/20">
-                <ShieldCheck size={24} className="text-white" />
-              </div>
-            )}
-          </div>
-          
-          <div className="flex items-center gap-4">
-            {user ? (
-              <div className="flex items-center gap-4 pl-4 border-l border-gray-200">
-                <div className="text-right">
-                  <p className="text-sm font-bold text-gray-800">{user.displayName}</p>
-                  <p className="text-[10px] text-[#c8323c] font-bold uppercase tracking-widest">{user.role}</p>
-                </div>
-                <button 
-                  onClick={handleLogout}
-                  className="p-2 hover:bg-red-50 text-gray-400 hover:text-red-600 rounded-full transition-colors"
-                >
-                  <LogOut size={20} />
-                </button>
-              </div>
-            ) : (
+        {activeView !== 'sgq' && (
+          <header className="bg-white border-b border-slate-50 h-24 flex items-center justify-between px-8 md:px-16 shrink-0 sticky top-0 z-40">
+            <div className="flex items-center gap-8">
               <button 
-                onClick={() => setIsLoginOpen(true)}
-                className="flex items-center gap-2 px-5 py-2 bg-[#c8323c] text-white rounded-lg text-sm font-bold hover:bg-[#b02a33] transition-colors shadow-lg shadow-red-900/20"
+                onClick={() => setIsSidebarOpen(true)}
+                className="p-3 hover:bg-slate-50 rounded-2xl md:hidden text-slate-400"
               >
-                <LogIn size={18} />
-                <span>Entrar</span>
+                <Menu size={24} />
               </button>
-            )}
-          </div>
-        </header>
+              
+              <div className="flex items-center gap-4">
+                {logoUrl ? (
+                  <img src={logoUrl} alt="Logo" className="max-h-14 w-auto object-contain" />
+                ) : (
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                        <ShieldCheck size={18} className="text-white" />
+                      </div>
+                      <span className="font-black text-xl text-slate-900 tracking-tight">Portal SGQ</span>
+                    </div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-11 -mt-1">Gestão da Qualidade</span>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-8">
+              {activeView !== 'sistemas' && (
+                <div className="hidden lg:flex items-center gap-3 text-slate-300 font-bold">
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary/20"></div>
+                  <span className="text-xs tracking-[0.2em] uppercase">{viewTitles[activeView]}</span>
+                </div>
+              )}
+
+              {user ? (
+                <div className="flex items-center gap-6 pl-8 border-l border-slate-50">
+                  <div className="text-right hidden sm:block">
+                    <p className="text-sm font-black text-slate-900 leading-none">{user.displayName}</p>
+                    <p className="text-[10px] text-primary font-bold uppercase tracking-widest mt-1">{user.role}</p>
+                  </div>
+                  <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center border border-slate-100 shadow-sm">
+                    <UserIcon size={24} className="text-slate-300" />
+                  </div>
+                  <button 
+                    onClick={handleLogout}
+                    className="p-3 hover:bg-red-50 text-slate-300 hover:text-red-500 rounded-2xl transition-all"
+                  >
+                    <LogOut size={22} />
+                  </button>
+                </div>
+              ) : (
+                <button 
+                  onClick={() => setIsLoginOpen(true)}
+                  className="flex items-center gap-2 px-8 py-3.5 bg-primary text-white rounded-2xl text-sm font-black hover:scale-[1.02] hover:shadow-2xl hover:shadow-primary/30 transition-all active:scale-[0.98]"
+                >
+                  <span>Acesso Restrito</span>
+                </button>
+              )}
+            </div>
+          </header>
+        )}
+
+        {/* Floating Toggle if Header is hidden (Mobile) */}
+        {activeView === 'sgq' && !isSidebarOpen && (
+          <button 
+            onClick={() => setIsSidebarOpen(true)}
+            className="fixed top-6 left-6 z-50 p-3 bg-white shadow-xl rounded-2xl text-slate-400 md:hidden border border-slate-100 transition-all active:scale-95"
+          >
+            <Menu size={24} />
+          </button>
+        )}
 
         {/* View Content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 bg-[#f8f9fa]">
+        <main className={cn(
+          "flex-1 overflow-y-auto",
+          activeView === 'sgq' ? "p-0" : "p-8 md:p-16"
+        )}>
           <AnimatePresence mode="wait">
             {activeView === 'sistemas' && (
               <motion.div 
@@ -341,41 +379,45 @@ export default function App() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="space-y-12"
+                className="max-w-7xl mx-auto space-y-20 pb-40"
               >
-                {/* Banner */}
-                <div className="relative rounded-2xl overflow-hidden shadow-2xl aspect-[2/1] md:aspect-[4/1] bg-gray-900 group">
+                {/* Banner Section */}
+                <div className="relative rounded-[48px] overflow-hidden shadow-2xl aspect-[2/1] md:aspect-[3/1] lg:aspect-[4/1] bg-dark group">
                   <img 
-                    src={news[0]?.imageUrl || "https://picsum.photos/seed/hospital/1200/300"} 
-                    alt="Banner" 
-                    className="w-full h-full object-cover opacity-60 group-hover:scale-110 group-hover:-translate-y-2 transition-all duration-1000 ease-out"
+                    src={news[0]?.imageUrl || "https://picsum.photos/seed/hospital-banner/1200/400"} 
+                    alt="Banner Principal" 
+                    className="w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-[3000ms] ease-out"
                   />
-                  <div className="absolute inset-0 p-6 md:p-10 flex flex-col justify-end text-white">
-                    <h1 className="text-2xl md:text-4xl font-bold mb-2">{news[0]?.title || "Bem-vindo ao Santa Casa Conecta"}</h1>
-                    <p className="text-sm md:text-lg opacity-90 max-w-2xl line-clamp-2 md:line-clamp-none">{news[0]?.content || "Sua plataforma central de sistemas e informações."}</p>
+                  <div className="absolute inset-0 p-8 md:p-16 flex flex-col justify-end text-white bg-gradient-to-t from-dark/95 via-dark/20 to-transparent">
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className="px-3 py-1 bg-primary text-[10px] font-black uppercase tracking-[0.2em] rounded-full">Notícia</span>
+                      <div className="h-[1px] w-12 bg-white/20"></div>
+                    </div>
+                    <h1 className="text-3xl md:text-5xl font-black mb-4 leading-tight max-w-4xl">{news[0]?.title || "Bem-vindo ao Portal Santa Casa"}</h1>
+                    <p className="text-sm md:text-lg opacity-90 max-w-2xl font-medium line-clamp-2 md:line-clamp-none">{news[0]?.content || "Sua plataforma central para sistemas, ramais e documentação de qualidade."}</p>
                   </div>
                 </div>
 
                 {/* Shortcuts */}
-                <div className="space-y-12">
+                <div className="space-y-24">
                   {categories.map((cat) => (
-                    <div key={cat.name} className="space-y-6">
-                      <h3 className="text-sm font-bold text-gray-400 uppercase tracking-[0.2em] flex items-center gap-3">
-                        <div className="h-[1px] flex-1 bg-gray-200"></div>
+                    <div key={cat.name} className="space-y-10">
+                      <h3 className="text-xs font-black text-slate-900 uppercase tracking-[0.5em] flex items-center justify-center gap-8">
+                        <div className="h-[2px] w-16 bg-primary/20 rounded-full"></div>
                         {cat.name}
-                        <div className="h-[1px] flex-1 bg-gray-200"></div>
+                        <div className="h-[2px] w-16 bg-primary/20 rounded-full"></div>
                       </h3>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-10">
                         {cat.shortcuts.map((s) => (
                           <div key={s.id} className="relative group/card">
                             <a 
                               href={s.link}
-                              className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group text-center flex flex-col items-center h-full"
+                              className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm hover:shadow-2xl hover:border-primary/10 hover:-translate-y-3 transition-all duration-700 group text-center flex flex-col items-center h-full"
                             >
-                              <div className="w-24 h-24 bg-gray-50 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-red-50 transition-colors overflow-hidden">
-                                <img src={s.iconUrl} alt={s.title} className="w-full h-full object-contain p-2 group-hover:scale-110 transition-transform" />
+                              <div className="w-20 h-20 bg-slate-50 rounded-[30px] flex items-center justify-center mb-6 group-hover:bg-red-50 transition-colors duration-700 overflow-hidden shadow-inner">
+                                <img src={s.iconUrl} alt={s.title} className="w-full h-full object-contain p-4 group-hover:scale-110 transition-transform duration-700" />
                               </div>
-                              <span className="text-xs font-bold text-gray-700 group-hover:text-[#c8323c] leading-tight">{s.title}</span>
+                              <span className="text-sm font-bold text-slate-800 group-hover:text-primary transition-colors duration-300 leading-tight tracking-tight">{s.title}</span>
                             </a>
                             {user?.role === 'admin' && (
                               <button 
@@ -383,7 +425,7 @@ export default function App() {
                                   e.preventDefault();
                                   setActiveView('admin');
                                 }}
-                                className="absolute -top-2 -right-2 p-2 bg-white rounded-full shadow-lg border border-gray-100 text-blue-600 opacity-0 group-hover/card:opacity-100 transition-opacity z-10 hover:bg-blue-50"
+                                className="absolute -top-2 -right-2 p-2 bg-white rounded-full shadow-lg border border-slate-100 text-primary opacity-0 group-hover/card:opacity-100 transition-opacity z-10 hover:bg-red-50"
                               >
                                 <Edit size={14} />
                               </button>
@@ -400,49 +442,55 @@ export default function App() {
             {activeView === 'ramais' && (
               <motion.div 
                 key="ramais"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="space-y-6"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="max-w-6xl mx-auto space-y-12"
               >
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-                  <div>
-                    <h2 className="text-3xl font-bold text-gray-800">Lista de Ramais</h2>
-                    <p className="text-gray-500">Consulte os ramais internos da Santa Casa</p>
-                  </div>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                    <input 
-                      type="text" 
-                      placeholder="Pesquisar ramal ou setor..." 
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 pr-4 py-2 bg-white border border-gray-200 focus:border-[#c8323c] rounded-xl text-sm transition-all outline-none w-full md:w-80 shadow-sm"
-                    />
+                {/* Clean Header Area */}
+                <div className="text-center space-y-4 pt-4">
+                  <h2 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tight">
+                    Lista de Ramais
+                  </h2>
+                  <p className="text-slate-500 text-lg max-w-2xl mx-auto font-medium">
+                    Consulte os contatos e ramais internos de todos os departamentos da Santa Casa.
+                  </p>
+
+                  <div className="pt-8 max-w-2xl mx-auto">
+                    <div className="relative group">
+                      <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-primary transition-colors" size={24} />
+                      <input 
+                        type="text" 
+                        placeholder="Pesquisar por nome, setor ou ramal..." 
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-16 pr-8 py-5 bg-white border border-slate-200 focus:border-primary rounded-[24px] text-lg transition-all outline-none shadow-sm focus:shadow-xl focus:shadow-primary/5"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
+                <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 overflow-hidden">
                   <table className="w-full text-left min-w-[600px] md:min-w-0">
-                    <thead className="bg-gray-50 border-b border-gray-100">
-                      <tr className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                        <th className="px-6 py-4">Nome / Setor</th>
-                        <th className="px-6 py-4">Departamento</th>
-                        <th className="px-6 py-4">Ramal</th>
+                    <thead className="bg-slate-50/50 border-b border-slate-100">
+                      <tr className="text-xs font-black text-slate-900 uppercase tracking-[0.2em]">
+                        <th className="px-8 py-6">Nome / Setor</th>
+                        <th className="px-8 py-6">Departamento</th>
+                        <th className="px-8 py-6">Ramal</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody className="divide-y divide-slate-50">
                       {extensions.filter(ex => 
                         ex.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                         ex.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
                         ex.number.includes(searchTerm)
                       ).map(ex => (
-                        <tr key={ex.id} className="hover:bg-gray-50 transition-colors">
-                          <td className="px-6 py-4 font-bold text-sm text-gray-800">{ex.name}</td>
-                          <td className="px-6 py-4 text-xs text-gray-500 uppercase font-bold">{ex.department}</td>
-                          <td className="px-6 py-4">
-                            <span className="flex items-center gap-2 text-[#c8323c] font-mono font-bold">
-                              <PhoneCall size={14} />
+                        <tr key={ex.id} className="hover:bg-slate-50 transition-colors group">
+                          <td className="px-8 py-6 font-bold text-sm text-slate-800 group-hover:text-primary transition-colors">{ex.name}</td>
+                          <td className="px-8 py-6 text-xs text-slate-400 uppercase font-black tracking-widest">{ex.department}</td>
+                          <td className="px-8 py-6">
+                            <span className="flex items-center gap-3 text-primary font-mono font-black text-base">
+                              <Phone size={16} />
                               {ex.number}
                             </span>
                           </td>
@@ -459,75 +507,32 @@ export default function App() {
                 key="sgq"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="space-y-6"
+                className="w-full h-full bg-white overflow-hidden"
               >
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-                  <div>
-                    <h2 className="text-3xl font-bold text-gray-800">Documentos SGQ</h2>
-                    <p className="text-gray-500">Gestão da Qualidade e Processos</p>
-                  </div>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                    <input 
-                      type="text" 
-                      placeholder="Pesquisar documentos..." 
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 pr-4 py-2 bg-white border border-gray-200 focus:border-[#c8323c] rounded-xl text-sm transition-all outline-none w-full md:w-80 shadow-sm"
-                    />
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                  <table className="w-full text-left">
-                    <thead className="bg-gray-50 border-b border-gray-100">
-                      <tr className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                        <th className="px-6 py-4">Código</th>
-                        <th className="px-6 py-4">Título do Documento</th>
-                        <th className="px-6 py-4">Versão</th>
-                        <th className="px-6 py-4">Categoria</th>
-                        <th className="px-6 py-4 text-right">Ação</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {documents.filter(doc => 
-                        doc.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                        doc.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        doc.category.toLowerCase().includes(searchTerm.toLowerCase())
-                      ).map(doc => (
-                      <tr key={doc.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 font-mono text-xs text-[#c8323c]">{doc.code}</td>
-                        <td className="px-6 py-4 font-bold text-sm text-gray-800">{doc.title}</td>
-                        <td className="px-6 py-4 text-xs text-gray-500">{doc.version}</td>
-                        <td className="px-6 py-4">
-                          <span className="px-2 py-1 bg-gray-100 text-gray-500 rounded text-[10px] font-bold uppercase">{doc.category}</span>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <button className="text-[#c8323c] font-bold text-xs hover:underline">Visualizar</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </motion.div>
+                <iframe 
+                  src="https://sgq.santacasago.com.br" 
+                  className="w-full h-full border-0"
+                  style={{ height: '100dvh' }}
+                  title="Documentos SGQ"
+                />
+              </motion.div>
             )}
 
             {activeView === 'artigos' && (
               <motion.div key="artigos" className="space-y-8">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
                   <div>
-                    <h2 className="text-3xl font-bold text-gray-800">Artigos</h2>
-                    <p className="text-gray-500">Conhecimento e atualizações para a equipe</p>
+                    <h2 className="text-3xl font-bold text-slate-800">Artigos</h2>
+                    <p className="text-slate-500">Conhecimento e atualizações para a equipe</p>
                   </div>
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                     <input 
                       type="text" 
                       placeholder="Pesquisar artigos..." 
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 pr-4 py-2 bg-white border border-gray-200 focus:border-[#c8323c] rounded-xl text-sm transition-all outline-none w-full md:w-80 shadow-sm"
+                      className="pl-10 pr-4 py-2 bg-white border border-slate-200 focus:border-primary rounded-xl text-sm transition-all outline-none w-full md:w-80 shadow-sm"
                     />
                   </div>
                 </div>
@@ -537,13 +542,13 @@ export default function App() {
                     article.summary.toLowerCase().includes(searchTerm.toLowerCase()) ||
                     article.author.toLowerCase().includes(searchTerm.toLowerCase())
                   ).map(article => (
-                    <div key={article.id} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-                      <p className="text-[10px] font-bold text-[#c8323c] uppercase mb-2">{article.date}</p>
-                      <h3 className="text-lg font-bold text-gray-800 mb-3">{article.title}</h3>
-                      <p className="text-sm text-gray-500 mb-4 line-clamp-3">{article.summary}</p>
-                      <div className="flex items-center justify-between pt-4 border-t border-gray-50">
-                        <span className="text-xs text-gray-400">Por {article.author}</span>
-                        <button className="text-xs font-bold text-[#c8323c]">Ler mais</button>
+                    <div key={article.id} className="bg-white rounded-[24px] p-8 shadow-sm border border-slate-200 hover:shadow-xl hover:-translate-y-1 hover:border-red-200 transition-all duration-300">
+                      <p className="text-[10px] font-bold text-primary uppercase mb-3 tracking-wider">{article.date}</p>
+                      <h3 className="text-xl font-bold text-slate-800 mb-3 leading-tight">{article.title}</h3>
+                      <p className="text-sm text-slate-500 mb-6 line-clamp-3 leading-relaxed">{article.summary}</p>
+                      <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                        <span className="text-xs font-medium text-slate-400">Por {article.author}</span>
+                        <button className="text-xs font-bold text-primary hover:text-red-700 transition-colors">Ler mais</button>
                       </div>
                     </div>
                   ))}
@@ -555,17 +560,17 @@ export default function App() {
               <motion.div key="eventos" className="space-y-8">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
                   <div>
-                    <h2 className="text-3xl font-bold text-gray-800">Eventos</h2>
-                    <p className="text-gray-500">Acompanhe a agenda da Santa Casa</p>
+                    <h2 className="text-3xl font-bold text-slate-800">Eventos</h2>
+                    <p className="text-slate-500">Acompanhe a agenda da Santa Casa</p>
                   </div>
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                     <input 
                       type="text" 
                       placeholder="Pesquisar eventos..." 
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 pr-4 py-2 bg-white border border-gray-200 focus:border-[#c8323c] rounded-xl text-sm transition-all outline-none w-full md:w-80 shadow-sm"
+                      className="pl-10 pr-4 py-2 bg-white border border-slate-200 focus:border-primary rounded-xl text-sm transition-all outline-none w-full md:w-80 shadow-sm"
                     />
                   </div>
                 </div>
@@ -575,20 +580,20 @@ export default function App() {
                     event.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
                     event.location.toLowerCase().includes(searchTerm.toLowerCase())
                   ).map(event => (
-                    <div key={event.id} className="bg-white rounded-2xl p-6 flex items-center gap-6 shadow-sm border border-gray-100">
-                      <div className="w-16 h-16 bg-red-50 rounded-xl flex flex-col items-center justify-center text-[#c8323c] shrink-0">
-                        <span className="text-lg font-bold leading-none">{event.date.split('-')[2]}</span>
-                        <span className="text-[10px] font-bold uppercase">ABR</span>
+                    <div key={event.id} className="bg-white rounded-[24px] p-6 flex flex-col md:flex-row md:items-center gap-6 shadow-sm border border-slate-200 hover:shadow-xl hover:border-red-200 transition-all duration-300 group">
+                      <div className="w-20 h-20 bg-slate-50 rounded-2xl flex flex-col items-center justify-center text-primary shrink-0 group-hover:bg-red-50 transition-colors">
+                        <span className="text-2xl font-bold leading-none">{event.date.split('-')[2]}</span>
+                        <span className="text-xs font-bold uppercase tracking-wider mt-1">ABR</span>
                       </div>
                       <div className="flex-1">
-                        <h3 className="font-bold text-gray-800">{event.title}</h3>
-                        <p className="text-sm text-gray-500">{event.description}</p>
-                        <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
-                          <span className="flex items-center gap-1"><Calendar size={12} /> {event.date}</span>
-                          <span className="flex items-center gap-1"><Home size={12} /> {event.location}</span>
+                        <h3 className="text-lg font-bold text-slate-800 mb-1">{event.title}</h3>
+                        <p className="text-sm text-slate-500 mb-3">{event.description}</p>
+                        <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-slate-400">
+                          <span className="flex items-center gap-1.5"><Calendar size={14} /> {event.date}</span>
+                          <span className="flex items-center gap-1.5"><Home size={14} /> {event.location}</span>
                         </div>
                       </div>
-                      <button className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-bold text-gray-600 transition-colors">Inscrever-se</button>
+                      <button className="w-full md:w-auto px-6 py-3 bg-slate-50 hover:bg-red-50 hover:text-primary rounded-xl text-sm font-bold text-slate-600 transition-colors">Inscrever-se</button>
                     </div>
                   ))}
                 </div>
@@ -625,7 +630,7 @@ export default function App() {
         </main>
 
         {/* Mobile Bottom Navigation */}
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 h-16 flex items-center justify-around px-2 md:hidden z-50">
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 h-16 flex items-center justify-around px-2 md:hidden z-50">
           <MobileNavItem 
             icon={<Home size={24} />} 
             active={activeView === 'sistemas'} 
@@ -688,13 +693,13 @@ export default function App() {
                   {logoUrl ? (
                     <img src={logoUrl} alt="Logo" className="max-h-24 w-auto object-contain" />
                   ) : (
-                    <div className="w-16 h-16 bg-[#c8323c] rounded-2xl flex items-center justify-center shadow-lg shadow-red-900/20">
+                    <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20">
                       <ShieldCheck size={32} className="text-white" />
                     </div>
                   )}
                 </div>
-                {!logoUrl && <h3 className="text-2xl font-bold text-center text-gray-800 mb-2">Santa Casa Conecta</h3>}
-                <p className="text-center text-gray-500 text-sm mb-8">Entre com suas credenciais de colaborador</p>
+                {!logoUrl && <h3 className="text-2xl font-bold text-center text-slate-800 mb-2">Santa Casa Conecta</h3>}
+                <p className="text-center text-slate-500 text-sm mb-8">Entre com suas credenciais de colaborador</p>
                 
                 <LoginForm onSuccess={(u) => { setUser(u); setIsLoginOpen(false); }} />
               </div>
@@ -711,13 +716,20 @@ function NavItem({ icon, label, active, collapsed, onClick }: { icon: any, label
     <button 
       onClick={onClick}
       className={cn(
-        "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
-        active ? "bg-[#c8323c] text-white shadow-lg shadow-red-900/40" : "text-gray-400 hover:bg-white/5 hover:text-white"
+        "w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all duration-300 relative group",
+        active ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-slate-500 hover:text-slate-900 hover:bg-white/60"
       )}
     >
-      <div className={cn("shrink-0", active ? "text-white" : "group-hover:text-white")}>{icon}</div>
-      {!collapsed && <span className="text-sm font-bold tracking-wide">{label}</span>}
-      {active && !collapsed && <ChevronRight size={16} className="ml-auto opacity-60" />}
+      <div className={cn("shrink-0 transition-transform duration-300", active ? "scale-110 text-white" : "group-hover:scale-110")}>{icon}</div>
+      {!collapsed && <span className="text-sm font-bold tracking-tight">{label}</span>}
+      {active && (
+        <motion.div 
+          layoutId="sidebar-active"
+          className="absolute left-0 w-1.5 h-8 bg-white/40 rounded-r-full"
+          initial={{ opacity: 0, x: -5 }}
+          animate={{ opacity: 1, x: 0 }}
+        />
+      )}
     </button>
   );
 }
@@ -741,16 +753,16 @@ function AnnouncementModal({ message, isOpen, onClose }: { message: string, isOp
             className="relative bg-white w-full max-w-lg rounded-[32px] shadow-2xl overflow-hidden"
           >
             <div className="p-8 md:p-12 text-center">
-              <div className="w-20 h-20 bg-red-50 rounded-3xl flex items-center justify-center mx-auto mb-8 text-[#c8323c]">
+              <div className="w-20 h-20 bg-red-50 rounded-3xl flex items-center justify-center mx-auto mb-8 text-primary">
                 <Megaphone size={40} />
               </div>
-              <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">Aviso Importante</h2>
-              <div className="text-gray-600 text-lg leading-relaxed mb-10 whitespace-pre-wrap">
+              <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-4">Aviso Importante</h2>
+              <div className="text-slate-600 text-lg leading-relaxed mb-10 whitespace-pre-wrap">
                 {message}
               </div>
               <button 
                 onClick={onClose}
-                className="w-full py-4 bg-[#c8323c] text-white rounded-2xl font-bold text-lg shadow-xl shadow-red-900/20 hover:bg-[#b02a33] transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+                className="w-full py-4 bg-primary text-white rounded-2xl font-bold text-lg shadow-xl shadow-primary/20 hover:opacity-90 transition-all transform hover:scale-[1.02] active:scale-[0.98]"
               >
                 Entendi, vamos lá!
               </button>
@@ -768,7 +780,7 @@ function MobileNavItem({ icon, active, onClick }: { icon: any, active: boolean, 
       onClick={onClick}
       className={cn(
         "flex flex-col items-center justify-center p-2 rounded-xl transition-all duration-200",
-        active ? "bg-[#c8323c] text-white shadow-lg shadow-red-900/20" : "text-gray-400"
+        active ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-slate-400"
       )}
     >
       {icon}
@@ -810,23 +822,23 @@ function LoginForm({ onSuccess }: { onSuccess: (u: UserProfile) => void }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Usuário</label>
+        <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Usuário</label>
         <input 
           type="text" 
           value={username}
           onChange={e => setUsername(e.target.value)}
-          className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none transition-all"
+          className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:border-primary outline-none transition-all"
           placeholder="Ex: thiago.pacheco"
           required
         />
       </div>
       <div>
-        <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Senha</label>
+        <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Senha</label>
         <input 
           type="password" 
           value={password}
           onChange={e => setPassword(e.target.value)}
-          className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none transition-all"
+          className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:border-primary outline-none transition-all"
           placeholder="••••••••"
           required
         />
@@ -837,7 +849,7 @@ function LoginForm({ onSuccess }: { onSuccess: (u: UserProfile) => void }) {
       <button 
         type="submit"
         disabled={loading}
-        className="w-full py-4 bg-[#c8323c] text-white rounded-xl font-bold shadow-lg shadow-red-900/20 hover:bg-[#b02a33] transition-all disabled:opacity-50 mt-4"
+        className="w-full py-4 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:bg-red-700 transition-all disabled:opacity-50 mt-4"
       >
         {loading ? "Entrando..." : "Acessar Portal"}
       </button>
@@ -1172,14 +1184,14 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
       animate={{ opacity: 1, y: 0 }}
       className="space-y-8"
     >
-      <div className="flex items-center gap-4 bg-white p-2 rounded-2xl shadow-sm border border-gray-100 w-fit overflow-x-auto max-w-full">
+      <div className="flex items-center gap-4 bg-white p-2 rounded-2xl shadow-sm border border-slate-100 w-fit overflow-x-auto max-w-full">
         {availableTabs.map((t) => (
           <button 
             key={t.id}
             onClick={() => setTab(t.id)}
             className={cn(
               "px-6 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap flex items-center gap-2",
-              tab === t.id ? "bg-[#c8323c] text-white shadow-lg shadow-red-900/20" : "text-gray-400 hover:bg-gray-50"
+              tab === t.id ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-slate-400 hover:bg-slate-50"
             )}
           >
             {t.icon}
@@ -1192,12 +1204,12 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-bold text-gray-800">Gerenciar Atalhos</h2>
-              <p className="text-sm text-gray-500">Arraste para organizar a ordem de exibição</p>
+              <h2 className="text-xl font-bold text-slate-800">Gerenciar Atalhos</h2>
+              <p className="text-sm text-slate-500">Arraste para organizar a ordem de exibição</p>
             </div>
             <button 
               onClick={() => setEditingShortcut({ title: '', iconUrl: '', link: '', category: categories[0] || 'SISTEMAS' })}
-              className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl text-sm font-bold hover:bg-green-700 transition-all shadow-lg shadow-green-900/20"
+              className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl text-sm font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
             >
               <Plus size={18} />
               <span>Novo Atalho</span>
@@ -1209,21 +1221,21 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
               <Reorder.Item 
                 key={s.id} 
                 value={s}
-                className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4 cursor-grab active:cursor-grabbing hover:border-red-200 transition-colors"
+                className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 cursor-grab active:cursor-grabbing hover:border-red-200 transition-colors"
               >
                 <div className="text-gray-300"><GripVertical size={20} /></div>
-                <div className="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center shrink-0">
+                <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center shrink-0">
                   <img src={s.iconUrl} alt={s.title} className="w-8 h-8 object-contain" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h4 className="font-bold text-gray-800 truncate">{s.title}</h4>
-                  <p className="text-xs text-gray-400 truncate">{s.link}</p>
+                  <h4 className="font-bold text-slate-800 truncate">{s.title}</h4>
+                  <p className="text-xs text-slate-400 truncate">{s.link}</p>
                 </div>
-                <div className="px-3 py-1 bg-gray-100 rounded-lg text-[10px] font-bold text-gray-500 uppercase">{s.category}</div>
+                <div className="px-3 py-1 bg-surface rounded-lg text-[10px] font-bold text-slate-500 uppercase">{s.category}</div>
                 <div className="flex items-center gap-2">
                   <button 
                     onClick={() => setEditingShortcut(s)}
-                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    className="p-2 text-primary hover:bg-red-50 rounded-lg transition-colors"
                   >
                     <Edit size={18} />
                   </button>
@@ -1244,12 +1256,12 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-bold text-gray-800">Gerenciar Comunicação</h2>
-              <p className="text-sm text-gray-500">Banners e avisos para os colaboradores</p>
+              <h2 className="text-xl font-bold text-slate-800">Gerenciar Comunicação</h2>
+              <p className="text-sm text-slate-500">Banners e avisos para os colaboradores</p>
             </div>
             <button 
               onClick={() => setEditingNews({ title: '', content: '', date: new Date().toISOString().split('T')[0] })}
-              className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl text-sm font-bold hover:bg-green-700 transition-all shadow-lg shadow-green-900/20"
+              className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl text-sm font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
             >
               <Plus size={18} />
               <span>Novo Aviso</span>
@@ -1260,7 +1272,7 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
             {news.map((n, index) => (
               <div key={n.id} className={cn(
                 "bg-white p-6 rounded-2xl border shadow-sm flex items-start gap-6 transition-all",
-                index === 0 ? "border-red-200 ring-1 ring-red-100" : "border-gray-100"
+                index === 0 ? "border-red-200 ring-1 ring-red-100" : "border-slate-100"
               )}>
                 {n.imageUrl && (
                   <div className="w-32 h-20 rounded-xl overflow-hidden shrink-0">
@@ -1270,12 +1282,12 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     {index === 0 && (
-                      <span className="px-2 py-0.5 bg-red-100 text-[#c8323c] text-[10px] font-bold rounded uppercase">Banner Principal</span>
+                      <span className="px-2 py-0.5 bg-red-100 text-primary text-[10px] font-bold rounded uppercase">Banner Principal</span>
                     )}
-                    <h4 className="font-bold text-gray-800 truncate">{n.title}</h4>
-                    <span className="text-[10px] text-gray-400 font-bold">{n.date}</span>
+                    <h4 className="font-bold text-slate-800 truncate">{n.title}</h4>
+                    <span className="text-[10px] text-slate-400 font-bold">{n.date}</span>
                   </div>
-                  <p className="text-sm text-gray-500 line-clamp-2">{n.content}</p>
+                  <p className="text-sm text-slate-500 line-clamp-2">{n.content}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   {index !== 0 && (
@@ -1289,7 +1301,7 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
                         });
                         if (res.ok) onRefresh();
                       }}
-                      className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                      className="p-2 text-primary hover:bg-red-50 rounded-lg transition-colors"
                       title="Definir como Banner Principal"
                     >
                       <Layers size={18} />
@@ -1297,7 +1309,7 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
                   )}
                   <button 
                     onClick={() => setEditingNews(n)}
-                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    className="p-2 text-primary hover:bg-red-50 rounded-lg transition-colors"
                   >
                     <Edit size={18} />
                   </button>
@@ -1318,21 +1330,21 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-bold text-gray-800">Gerenciar Categorias</h2>
-              <p className="text-sm text-gray-500">Crie ou remova categorias de atalhos</p>
+              <h2 className="text-xl font-bold text-slate-800">Gerenciar Categorias</h2>
+              <p className="text-sm text-slate-500">Crie ou remova categorias de atalhos</p>
             </div>
           </div>
 
-          <form onSubmit={handleAddCategory} className="flex gap-4 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+          <form onSubmit={handleAddCategory} className="flex gap-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
             <input 
               type="text" 
               value={newCategoryName}
               onChange={e => setNewCategoryName(e.target.value)}
               placeholder="Nome da nova categoria..."
-              className="flex-1 px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none"
+              className="flex-1 px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:border-primary outline-none"
               required
             />
-            <button type="submit" className="px-6 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-all">
+            <button type="submit" className="px-6 py-3 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 transition-all">
               Adicionar
             </button>
           </form>
@@ -1342,11 +1354,11 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
               <Reorder.Item 
                 key={cat} 
                 value={cat}
-                className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between cursor-grab active:cursor-grabbing hover:border-red-200 transition-colors"
+                className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between cursor-grab active:cursor-grabbing hover:border-red-200 transition-colors"
               >
                 <div className="flex items-center gap-4">
                   <div className="text-gray-300"><GripVertical size={20} /></div>
-                  <span className="font-bold text-gray-700 uppercase tracking-wide">{cat}</span>
+                  <span className="font-bold text-slate-700 uppercase tracking-wide">{cat}</span>
                 </div>
                 <button 
                   onClick={() => handleDeleteCategory(cat)}
@@ -1364,22 +1376,22 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-bold text-gray-800">Gerenciar Ramais</h2>
-              <p className="text-sm text-gray-500">Cadastre e organize os ramais internos</p>
+              <h2 className="text-xl font-bold text-slate-800">Gerenciar Ramais</h2>
+              <p className="text-sm text-slate-500">Cadastre e organize os ramais internos</p>
             </div>
             <button 
               onClick={() => setEditingExtension({ name: '', number: '', department: '' })}
-              className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl text-sm font-bold hover:bg-green-700 transition-all shadow-lg shadow-green-900/20"
+              className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl text-sm font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
             >
               <Plus size={18} />
               <span>Novo Ramal</span>
             </button>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-x-auto">
             <table className="w-full text-left min-w-[600px] md:min-w-0">
-              <thead className="bg-gray-50 border-b border-gray-100">
-                <tr className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+              <thead className="bg-slate-50 border-b border-slate-100">
+                <tr className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                   <th className="px-6 py-4">Nome / Setor</th>
                   <th className="px-6 py-4">Departamento</th>
                   <th className="px-6 py-4">Ramal</th>
@@ -1388,15 +1400,15 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {extensions.map(ex => (
-                  <tr key={ex.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 font-bold text-sm text-gray-800">{ex.name}</td>
-                    <td className="px-6 py-4 text-xs text-gray-500 uppercase font-bold">{ex.department}</td>
-                    <td className="px-6 py-4 font-mono font-bold text-[#c8323c]">{ex.number}</td>
+                  <tr key={ex.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-6 py-4 font-bold text-sm text-slate-800">{ex.name}</td>
+                    <td className="px-6 py-4 text-xs text-slate-500 uppercase font-bold">{ex.department}</td>
+                    <td className="px-6 py-4 font-mono font-bold text-primary">{ex.number}</td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <button 
                           onClick={() => setEditingExtension(ex)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          className="p-2 text-primary hover:bg-red-50 rounded-lg transition-colors"
                         >
                           <Edit size={18} />
                         </button>
@@ -1431,34 +1443,34 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
             >
               <form onSubmit={handleSaveShortcut} className="p-8 space-y-6">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-xl font-bold text-gray-800">{editingShortcut.id ? 'Editar Atalho' : 'Novo Atalho'}</h3>
-                  <button type="button" onClick={() => setEditingShortcut(null)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+                  <h3 className="text-xl font-bold text-slate-800">{editingShortcut.id ? 'Editar Atalho' : 'Novo Atalho'}</h3>
+                  <button type="button" onClick={() => setEditingShortcut(null)} className="text-slate-400 hover:text-gray-600"><X size={24} /></button>
                 </div>
 
                 <div className="space-y-4">
                   <div>
-                    <label className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase mb-2"><Type size={14} /> Título</label>
+                    <label className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase mb-2"><Type size={14} /> Título</label>
                     <input 
                       type="text" 
                       value={editingShortcut.title}
                       onChange={e => setEditingShortcut({...editingShortcut, title: e.target.value})}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:border-primary outline-none"
                       required
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase mb-2"><Layers size={14} /> Categoria</label>
+                      <label className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase mb-2"><Layers size={14} /> Categoria</label>
                       <select 
                         value={editingShortcut.category}
                         onChange={e => setEditingShortcut({...editingShortcut, category: e.target.value})}
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:border-primary outline-none"
                       >
                         {categories.map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase mb-2">
+                      <label className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase mb-2">
                         <ImageIcon size={14} /> Ícone (URL ou Upload)
                         <span className="ml-auto text-[10px] text-gray-300 normal-case font-normal">Sugerido: 512x512px</span>
                       </label>
@@ -1467,7 +1479,7 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
                           type="text" 
                           value={editingShortcut.iconUrl}
                           onChange={e => setEditingShortcut({...editingShortcut, iconUrl: e.target.value})}
-                          className="w-full px-4 py-2 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none text-sm"
+                          className="w-full px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:border-primary outline-none text-sm"
                           placeholder="https://..."
                         />
                         <div className="relative">
@@ -1480,7 +1492,7 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
                           />
                           <label 
                             htmlFor="shortcut-upload"
-                            className="flex items-center justify-center gap-2 w-full py-2 border-2 border-dashed border-gray-200 rounded-xl text-xs font-bold text-gray-400 hover:border-[#c8323c] hover:text-[#c8323c] cursor-pointer transition-all"
+                            className="flex items-center justify-center gap-2 w-full py-2 border-2 border-dashed border-slate-200 rounded-xl text-xs font-bold text-slate-400 hover:border-primary hover:text-primary cursor-pointer transition-all"
                           >
                             {uploading ? "Enviando..." : "Ou clique para Upload"}
                           </label>
@@ -1489,19 +1501,19 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
                     </div>
                   </div>
                   <div>
-                    <label className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase mb-2"><LinkIcon size={14} /> Link de Acesso</label>
+                    <label className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase mb-2"><LinkIcon size={14} /> Link de Acesso</label>
                     <input 
                       type="text" 
                       value={editingShortcut.link}
                       onChange={e => setEditingShortcut({...editingShortcut, link: e.target.value})}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:border-primary outline-none"
                       placeholder="https://..."
                       required
                     />
                   </div>
                 </div>
 
-                <button type="submit" className="w-full py-4 bg-[#c8323c] text-white rounded-xl font-bold shadow-lg shadow-red-900/20 hover:bg-[#b02a33] transition-all flex items-center justify-center gap-2">
+                <button type="submit" className="w-full py-4 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:bg-red-700 transition-all flex items-center justify-center gap-2">
                   <Save size={20} />
                   <span>Salvar Atalho</span>
                 </button>
@@ -1526,43 +1538,43 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
             >
               <form onSubmit={handleSaveNews} className="p-8 space-y-6">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-xl font-bold text-gray-800">{editingNews.id ? 'Editar Aviso' : 'Novo Aviso'}</h3>
-                  <button type="button" onClick={() => setEditingNews(null)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+                  <h3 className="text-xl font-bold text-slate-800">{editingNews.id ? 'Editar Aviso' : 'Novo Aviso'}</h3>
+                  <button type="button" onClick={() => setEditingNews(null)} className="text-slate-400 hover:text-gray-600"><X size={24} /></button>
                 </div>
 
                 <div className="space-y-4">
                   <div>
-                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Título</label>
+                    <label className="text-xs font-bold text-slate-400 uppercase mb-2 block">Título</label>
                     <input 
                       type="text" 
                       value={editingNews.title}
                       onChange={e => setEditingNews({...editingNews, title: e.target.value})}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:border-primary outline-none"
                       required
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Conteúdo</label>
+                    <label className="text-xs font-bold text-slate-400 uppercase mb-2 block">Conteúdo</label>
                     <textarea 
                       value={editingNews.content}
                       onChange={e => setEditingNews({...editingNews, content: e.target.value})}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none min-h-[100px]"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:border-primary outline-none min-h-[100px]"
                       required
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Data</label>
+                      <label className="text-xs font-bold text-slate-400 uppercase mb-2 block">Data</label>
                       <input 
                         type="date" 
                         value={editingNews.date}
                         onChange={e => setEditingNews({...editingNews, date: e.target.value})}
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:border-primary outline-none"
                         required
                       />
                     </div>
                     <div>
-                      <label className="flex items-center justify-between text-xs font-bold text-gray-400 uppercase mb-2 block">
+                      <label className="flex items-center justify-between text-xs font-bold text-slate-400 uppercase mb-2 block">
                         <span>Imagem (URL ou Upload)</span>
                         <span className="text-[10px] text-gray-300 normal-case font-normal">Sugerido: 1200x300px (4:1)</span>
                       </label>
@@ -1571,7 +1583,7 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
                           type="text" 
                           value={editingNews.imageUrl || ''}
                           onChange={e => setEditingNews({...editingNews, imageUrl: e.target.value})}
-                          className="w-full px-4 py-2 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none text-sm"
+                          className="w-full px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:border-primary outline-none text-sm"
                           placeholder="https://..."
                         />
                         <div className="relative">
@@ -1584,7 +1596,7 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
                           />
                           <label 
                             htmlFor="news-upload"
-                            className="flex items-center justify-center gap-2 w-full py-2 border-2 border-dashed border-gray-200 rounded-xl text-xs font-bold text-gray-400 hover:border-[#c8323c] hover:text-[#c8323c] cursor-pointer transition-all"
+                            className="flex items-center justify-center gap-2 w-full py-2 border-2 border-dashed border-slate-200 rounded-xl text-xs font-bold text-slate-400 hover:border-primary hover:text-primary cursor-pointer transition-all"
                           >
                             {uploading ? "Enviando..." : "Ou clique para Upload"}
                           </label>
@@ -1594,7 +1606,7 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
                   </div>
                 </div>
 
-                <button type="submit" className="w-full py-4 bg-[#c8323c] text-white rounded-xl font-bold shadow-lg shadow-red-900/20 hover:bg-[#b02a33] transition-all flex items-center justify-center gap-2">
+                <button type="submit" className="w-full py-4 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:bg-red-700 transition-all flex items-center justify-center gap-2">
                   <Save size={20} />
                   <span>Salvar Aviso</span>
                 </button>
@@ -1619,35 +1631,42 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
             >
               <form onSubmit={handleSaveDocument} className="p-8 space-y-6">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-xl font-bold text-gray-800">{editingDocument.id ? 'Editar Documento' : 'Novo Documento'}</h3>
-                  <button type="button" onClick={() => setEditingDocument(null)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+                  <h3 className="text-xl font-bold text-slate-800">{editingDocument.id ? 'Editar Documento' : 'Novo Documento'}</h3>
+                  <button type="button" onClick={() => setEditingDocument(null)} className="text-slate-400 hover:text-gray-600"><X size={24} /></button>
                 </div>
                 <div className="space-y-4">
-                  <div>
-                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Título</label>
-                    <input type="text" value={editingDocument.title} onChange={e => setEditingDocument({...editingDocument, title: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none" required />
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="col-span-2">
+                      <label className="text-xs font-bold text-slate-400 uppercase mb-2 block">Título</label>
+                      <input type="text" value={editingDocument.title} onChange={e => setEditingDocument({...editingDocument, title: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:border-primary outline-none" required />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-400 uppercase mb-2 block">Código</label>
+                      <input type="text" value={editingDocument.code || ''} onChange={e => setEditingDocument({...editingDocument, code: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:border-primary outline-none" placeholder="Ex: POP-001" required />
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Categoria</label>
-                      <select value={editingDocument.category} onChange={e => setEditingDocument({...editingDocument, category: e.target.value as any})} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none">
-                        <option value="MANUAL">Manual</option>
-                        <option value="POP">POP</option>
-                        <option value="INSTRUÇÃO">Instrução</option>
-                        <option value="FORMULÁRIO">Formulário</option>
-                      </select>
+                      <label className="text-xs font-bold text-slate-400 uppercase mb-2 block">Categoria</label>
+                      <input type="text" value={editingDocument.category} onChange={e => setEditingDocument({...editingDocument, category: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:border-primary outline-none" list="category-options" required />
+                      <datalist id="category-options">
+                        <option value="MANUAL" />
+                        <option value="POP" />
+                        <option value="INSTRUÇÃO" />
+                        <option value="FORMULÁRIO" />
+                      </datalist>
                     </div>
                     <div>
-                      <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Versão</label>
-                      <input type="text" value={editingDocument.version} onChange={e => setEditingDocument({...editingDocument, version: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none" required />
+                      <label className="text-xs font-bold text-slate-400 uppercase mb-2 block">Versão</label>
+                      <input type="text" value={editingDocument.version} onChange={e => setEditingDocument({...editingDocument, version: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:border-primary outline-none" required />
                     </div>
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">URL do Documento</label>
-                    <input type="text" value={editingDocument.url} onChange={e => setEditingDocument({...editingDocument, url: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none" placeholder="https://..." required />
+                    <label className="text-xs font-bold text-slate-400 uppercase mb-2 block">URL do Documento</label>
+                    <input type="text" value={editingDocument.url} onChange={e => setEditingDocument({...editingDocument, url: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:border-primary outline-none" placeholder="https://..." required />
                   </div>
                 </div>
-                <button type="submit" className="w-full py-4 bg-[#c8323c] text-white rounded-xl font-bold shadow-lg shadow-red-900/20 hover:bg-[#b02a33] transition-all flex items-center justify-center gap-2">
+                <button type="submit" className="w-full py-4 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:bg-red-700 transition-all flex items-center justify-center gap-2">
                   <Save size={20} />
                   <span>Salvar Documento</span>
                 </button>
@@ -1672,24 +1691,24 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
             >
               <form onSubmit={handleSaveArticle} className="p-8 space-y-6">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-xl font-bold text-gray-800">{editingArticle.id ? 'Editar Artigo' : 'Novo Artigo'}</h3>
-                  <button type="button" onClick={() => setEditingArticle(null)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+                  <h3 className="text-xl font-bold text-slate-800">{editingArticle.id ? 'Editar Artigo' : 'Novo Artigo'}</h3>
+                  <button type="button" onClick={() => setEditingArticle(null)} className="text-slate-400 hover:text-gray-600"><X size={24} /></button>
                 </div>
                 <div className="space-y-4">
                   <div>
-                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Título</label>
-                    <input type="text" value={editingArticle.title} onChange={e => setEditingArticle({...editingArticle, title: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none" required />
+                    <label className="text-xs font-bold text-slate-400 uppercase mb-2 block">Título</label>
+                    <input type="text" value={editingArticle.title} onChange={e => setEditingArticle({...editingArticle, title: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:border-primary outline-none" required />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Resumo</label>
-                    <input type="text" value={editingArticle.excerpt} onChange={e => setEditingArticle({...editingArticle, excerpt: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none" required />
+                    <label className="text-xs font-bold text-slate-400 uppercase mb-2 block">Resumo</label>
+                    <input type="text" value={editingArticle.excerpt} onChange={e => setEditingArticle({...editingArticle, excerpt: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:border-primary outline-none" required />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Conteúdo (Markdown)</label>
-                    <textarea value={editingArticle.content} onChange={e => setEditingArticle({...editingArticle, content: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none min-h-[200px]" required />
+                    <label className="text-xs font-bold text-slate-400 uppercase mb-2 block">Conteúdo (Markdown)</label>
+                    <textarea value={editingArticle.content} onChange={e => setEditingArticle({...editingArticle, content: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:border-primary outline-none min-h-[200px]" required />
                   </div>
                 </div>
-                <button type="submit" className="w-full py-4 bg-[#c8323c] text-white rounded-xl font-bold shadow-lg shadow-red-900/20 hover:bg-[#b02a33] transition-all flex items-center justify-center gap-2">
+                <button type="submit" className="w-full py-4 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:bg-red-700 transition-all flex items-center justify-center gap-2">
                   <Save size={20} />
                   <span>Salvar Artigo</span>
                 </button>
@@ -1714,30 +1733,30 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
             >
               <form onSubmit={handleSaveEvent} className="p-8 space-y-6">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-xl font-bold text-gray-800">{editingEvent.id ? 'Editar Evento' : 'Novo Evento'}</h3>
-                  <button type="button" onClick={() => setEditingEvent(null)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+                  <h3 className="text-xl font-bold text-slate-800">{editingEvent.id ? 'Editar Evento' : 'Novo Evento'}</h3>
+                  <button type="button" onClick={() => setEditingEvent(null)} className="text-slate-400 hover:text-gray-600"><X size={24} /></button>
                 </div>
                 <div className="space-y-4">
                   <div>
-                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Título</label>
-                    <input type="text" value={editingEvent.title} onChange={e => setEditingEvent({...editingEvent, title: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none" required />
+                    <label className="text-xs font-bold text-slate-400 uppercase mb-2 block">Título</label>
+                    <input type="text" value={editingEvent.title} onChange={e => setEditingEvent({...editingEvent, title: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:border-primary outline-none" required />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Data</label>
-                      <input type="date" value={editingEvent.date} onChange={e => setEditingEvent({...editingEvent, date: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none" required />
+                      <label className="text-xs font-bold text-slate-400 uppercase mb-2 block">Data</label>
+                      <input type="date" value={editingEvent.date} onChange={e => setEditingEvent({...editingEvent, date: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:border-primary outline-none" required />
                     </div>
                     <div>
-                      <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Hora</label>
-                      <input type="time" value={editingEvent.time} onChange={e => setEditingEvent({...editingEvent, time: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none" required />
+                      <label className="text-xs font-bold text-slate-400 uppercase mb-2 block">Hora</label>
+                      <input type="time" value={editingEvent.time} onChange={e => setEditingEvent({...editingEvent, time: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:border-primary outline-none" required />
                     </div>
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Local</label>
-                    <input type="text" value={editingEvent.location} onChange={e => setEditingEvent({...editingEvent, location: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none" required />
+                    <label className="text-xs font-bold text-slate-400 uppercase mb-2 block">Local</label>
+                    <input type="text" value={editingEvent.location} onChange={e => setEditingEvent({...editingEvent, location: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:border-primary outline-none" required />
                   </div>
                 </div>
-                <button type="submit" className="w-full py-4 bg-[#c8323c] text-white rounded-xl font-bold shadow-lg shadow-red-900/20 hover:bg-[#b02a33] transition-all flex items-center justify-center gap-2">
+                <button type="submit" className="w-full py-4 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:bg-red-700 transition-all flex items-center justify-center gap-2">
                   <Save size={20} />
                   <span>Salvar Evento</span>
                 </button>
@@ -1751,12 +1770,12 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-bold text-gray-800">Gerenciar Documentos SGQ</h2>
-              <p className="text-sm text-gray-500">Adicione ou remova documentos do sistema</p>
+              <h2 className="text-xl font-bold text-slate-800">Gerenciar Documentos SGQ</h2>
+              <p className="text-sm text-slate-500">Adicione ou remova documentos do sistema</p>
             </div>
             <button 
               onClick={() => setEditingDocument({ title: '', category: 'MANUAL', url: '', version: '1.0', date: new Date().toISOString().split('T')[0] })}
-              className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl text-sm font-bold hover:bg-green-700 transition-all shadow-lg shadow-green-900/20"
+              className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl text-sm font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
             >
               <Plus size={18} />
               <span>Novo Documento</span>
@@ -1764,18 +1783,18 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
           </div>
           <div className="grid grid-cols-1 gap-4">
             {documents.map(doc => (
-              <div key={doc.id} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
+              <div key={doc.id} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center">
+                  <div className="w-10 h-10 bg-red-50 text-primary rounded-lg flex items-center justify-center">
                     <FileCheck size={20} />
                   </div>
                   <div>
-                    <h4 className="font-bold text-gray-800">{doc.title}</h4>
-                    <p className="text-xs text-gray-400 uppercase font-bold">{doc.category} • v{doc.version}</p>
+                    <h4 className="font-bold text-slate-800">{doc.title}</h4>
+                    <p className="text-xs text-slate-400 uppercase font-bold">{doc.category} • v{doc.version}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => setEditingDocument(doc)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Edit size={18} /></button>
+                  <button onClick={() => setEditingDocument(doc)} className="p-2 text-primary hover:bg-red-50 rounded-lg transition-colors"><Edit size={18} /></button>
                   <button onClick={() => handleDeleteDocument(doc.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18} /></button>
                 </div>
               </div>
@@ -1788,12 +1807,12 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-bold text-gray-800">Gerenciar Artigos</h2>
-              <p className="text-sm text-gray-500">Publicações e informativos técnicos</p>
+              <h2 className="text-xl font-bold text-slate-800">Gerenciar Artigos</h2>
+              <p className="text-sm text-slate-500">Publicações e informativos técnicos</p>
             </div>
             <button 
               onClick={() => setEditingArticle({ title: '', excerpt: '', content: '', author: user.displayName, date: new Date().toISOString().split('T')[0], category: 'SAÚDE' })}
-              className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl text-sm font-bold hover:bg-green-700 transition-all shadow-lg shadow-green-900/20"
+              className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl text-sm font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
             >
               <Plus size={18} />
               <span>Novo Artigo</span>
@@ -1801,18 +1820,18 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
           </div>
           <div className="grid grid-cols-1 gap-4">
             {articles.map(art => (
-              <div key={art.id} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
+              <div key={art.id} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 bg-purple-50 text-purple-600 rounded-lg flex items-center justify-center">
                     <BookOpen size={20} />
                   </div>
                   <div>
-                    <h4 className="font-bold text-gray-800">{art.title}</h4>
-                    <p className="text-xs text-gray-400 font-bold">{art.author} • {art.date}</p>
+                    <h4 className="font-bold text-slate-800">{art.title}</h4>
+                    <p className="text-xs text-slate-400 font-bold">{art.author} • {art.date}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => setEditingArticle(art)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Edit size={18} /></button>
+                  <button onClick={() => setEditingArticle(art)} className="p-2 text-primary hover:bg-red-50 rounded-lg transition-colors"><Edit size={18} /></button>
                   <button onClick={() => handleDeleteArticle(art.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18} /></button>
                 </div>
               </div>
@@ -1825,12 +1844,12 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-bold text-gray-800">Gerenciar Eventos</h2>
-              <p className="text-sm text-gray-500">Calendário de atividades do hospital</p>
+              <h2 className="text-xl font-bold text-slate-800">Gerenciar Eventos</h2>
+              <p className="text-sm text-slate-500">Calendário de atividades do hospital</p>
             </div>
             <button 
               onClick={() => setEditingEvent({ title: '', description: '', date: new Date().toISOString().split('T')[0], time: '08:00', location: '', category: 'TREINAMENTO' })}
-              className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl text-sm font-bold hover:bg-green-700 transition-all shadow-lg shadow-green-900/20"
+              className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl text-sm font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
             >
               <Plus size={18} />
               <span>Novo Evento</span>
@@ -1838,18 +1857,18 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
           </div>
           <div className="grid grid-cols-1 gap-4">
             {events.map(ev => (
-              <div key={ev.id} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
+              <div key={ev.id} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 bg-orange-50 text-orange-600 rounded-lg flex items-center justify-center">
                     <Calendar size={20} />
                   </div>
                   <div>
-                    <h4 className="font-bold text-gray-800">{ev.title}</h4>
-                    <p className="text-xs text-gray-400 font-bold">{ev.date} às {ev.time} • {ev.location}</p>
+                    <h4 className="font-bold text-slate-800">{ev.title}</h4>
+                    <p className="text-xs text-slate-400 font-bold">{ev.date} às {ev.time} • {ev.location}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => setEditingEvent(ev)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Edit size={18} /></button>
+                  <button onClick={() => setEditingEvent(ev)} className="p-2 text-primary hover:bg-red-50 rounded-lg transition-colors"><Edit size={18} /></button>
                   <button onClick={() => handleDeleteEvent(ev.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18} /></button>
                 </div>
               </div>
@@ -1862,16 +1881,16 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-bold text-gray-800">Configurações do Sistema</h2>
-              <p className="text-sm text-gray-500">Personalize a aparência do portal</p>
+              <h2 className="text-xl font-bold text-slate-800">Configurações do Sistema</h2>
+              <p className="text-sm text-slate-500">Personalize a aparência do portal</p>
             </div>
           </div>
 
-          <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm space-y-8">
+          <div className="bg-white p-8 rounded-2xl border border-slate-100 shadow-sm space-y-8">
             <div className="space-y-4">
-              <label className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-widest">Logo do Sistema</label>
+              <label className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-widest">Logo do Sistema</label>
               <div className="flex flex-col md:flex-row items-start md:items-center gap-8">
-                <div className="w-32 h-32 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden">
+                <div className="w-32 h-32 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden">
                   {logoUrl ? (
                     <img src={logoUrl} alt="Preview" className="w-full h-full object-contain p-4" />
                   ) : (
@@ -1880,13 +1899,13 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
                 </div>
                 <div className="flex-1 space-y-4 w-full">
                   <div className="space-y-2">
-                    <p className="text-sm font-bold text-gray-700">URL da Imagem</p>
+                    <p className="text-sm font-bold text-slate-700">URL da Imagem</p>
                     <input 
                       type="text" 
                       value={logoUrl}
                       onChange={e => handleSaveLogo(e.target.value)}
                       placeholder="https://..."
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:border-primary outline-none"
                     />
                   </div>
                   <div className="relative">
@@ -1899,32 +1918,32 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
                     />
                     <label 
                       htmlFor="logo-upload"
-                      className="flex items-center justify-center gap-2 w-full py-3 border-2 border-dashed border-gray-200 rounded-xl text-sm font-bold text-gray-400 hover:border-[#c8323c] hover:text-[#c8323c] cursor-pointer transition-all"
+                      className="flex items-center justify-center gap-2 w-full py-3 border-2 border-dashed border-slate-200 rounded-xl text-sm font-bold text-slate-400 hover:border-primary hover:text-primary cursor-pointer transition-all"
                     >
                       {uploading ? "Enviando..." : "Ou clique para Upload"}
                     </label>
                   </div>
-                  <p className="text-[10px] text-gray-400">Tamanho recomendado: 512x512px. Formatos aceitos: PNG, JPG, SVG.</p>
+                  <p className="text-[10px] text-slate-400">Tamanho recomendado: 512x512px. Formatos aceitos: PNG, JPG, SVG.</p>
                 </div>
               </div>
             </div>
 
-            <div className="pt-8 border-t border-gray-100 space-y-6">
+            <div className="pt-8 border-t border-slate-100 space-y-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-[#c8323c]">
+                  <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-primary">
                     <Megaphone size={20} />
                   </div>
                   <div>
-                    <h3 className="font-bold text-gray-800">Aviso de Boas-vindas (Popup)</h3>
-                    <p className="text-xs text-gray-500">Exibe uma mensagem importante ao acessar o portal</p>
+                    <h3 className="font-bold text-slate-800">Aviso de Boas-vindas (Popup)</h3>
+                    <p className="text-xs text-slate-500">Exibe uma mensagem importante ao acessar o portal</p>
                   </div>
                 </div>
                 <button 
                   onClick={() => setAnnEnabled(!annEnabled)}
                   className={cn(
                     "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none",
-                    annEnabled ? "bg-[#c8323c]" : "bg-gray-200"
+                    annEnabled ? "bg-primary" : "bg-slate-200"
                   )}
                 >
                   <span className={cn(
@@ -1939,11 +1958,11 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
                   value={annMsg}
                   onChange={e => setAnnMsg(e.target.value)}
                   placeholder="Escreva aqui a mensagem do aviso..."
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none min-h-[120px] text-sm"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:border-primary outline-none min-h-[120px] text-sm"
                 />
                 <button 
                   onClick={handleSaveAnnouncement}
-                  className="px-6 py-3 bg-[#c8323c] text-white rounded-xl font-bold text-sm shadow-lg shadow-red-900/20 hover:bg-[#b02a33] transition-all flex items-center gap-2"
+                  className="px-6 py-3 bg-primary text-white rounded-xl font-bold text-sm shadow-lg shadow-primary/20 hover:bg-red-700 transition-all flex items-center gap-2"
                 >
                   <Save size={18} />
                   <span>Salvar Aviso</span>
@@ -1958,12 +1977,12 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-bold text-gray-800">Gerenciar Usuários</h2>
-              <p className="text-sm text-gray-500">Controle de acesso e permissões</p>
+              <h2 className="text-xl font-bold text-slate-800">Gerenciar Usuários</h2>
+              <p className="text-sm text-slate-500">Controle de acesso e permissões</p>
             </div>
             <button 
               onClick={() => setEditingUser({ username: '', displayName: '', email: '', role: roles[0]?.name || 'user', password: '' })}
-              className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl text-sm font-bold hover:bg-green-700 transition-all shadow-lg shadow-green-900/20"
+              className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl text-sm font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
             >
               <Plus size={18} />
               <span>Novo Usuário</span>
@@ -1971,18 +1990,18 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
           </div>
           <div className="grid grid-cols-1 gap-4">
             {users.map(u => (
-              <div key={u.id} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
+              <div key={u.id} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-gray-50 text-gray-600 rounded-lg flex items-center justify-center">
+                  <div className="w-10 h-10 bg-slate-50 text-gray-600 rounded-lg flex items-center justify-center">
                     <UserIcon size={20} />
                   </div>
                   <div>
-                    <h4 className="font-bold text-gray-800">{u.displayName}</h4>
-                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">{u.username} • {u.role} • {u.email}</p>
+                    <h4 className="font-bold text-slate-800">{u.displayName}</h4>
+                    <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">{u.username} • {u.role} • {u.email}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => setEditingUser(u)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Edit size={18} /></button>
+                  <button onClick={() => setEditingUser(u)} className="p-2 text-primary hover:bg-red-50 rounded-lg transition-colors"><Edit size={18} /></button>
                   <button onClick={() => handleDeleteUser(u.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18} /></button>
                 </div>
               </div>
@@ -1995,12 +2014,12 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-bold text-gray-800">Perfis de Acesso</h2>
-              <p className="text-sm text-gray-500">Gerencie os perfis e suas permissões</p>
+              <h2 className="text-xl font-bold text-slate-800">Perfis de Acesso</h2>
+              <p className="text-sm text-slate-500">Gerencie os perfis e suas permissões</p>
             </div>
             <button 
               onClick={() => setEditingRole({ name: '', permissions: { shortcuts: false, news: false, sgq: false, articles: false, events: false, ramais: false, users: false, settings: false, roles: false, categories: false } })}
-              className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl text-sm font-bold hover:bg-green-700 transition-all shadow-lg shadow-green-900/20"
+              className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl text-sm font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
             >
               <Plus size={18} />
               <span>Novo Perfil</span>
@@ -2008,20 +2027,20 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
           </div>
           <div className="grid grid-cols-1 gap-4">
             {roles.map(r => (
-              <div key={r.name} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
+              <div key={r.name} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-gray-50 text-gray-600 rounded-lg flex items-center justify-center">
+                  <div className="w-10 h-10 bg-slate-50 text-gray-600 rounded-lg flex items-center justify-center">
                     <ShieldCheck size={20} />
                   </div>
                   <div>
-                    <h4 className="font-bold text-gray-800">{r.name}</h4>
-                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">
+                    <h4 className="font-bold text-slate-800">{r.name}</h4>
+                    <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">
                       {Object.entries(r.permissions).filter(([_, v]) => v).map(([k]) => k).join(', ') || 'Nenhuma permissão'}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => setEditingRole(r)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Edit size={18} /></button>
+                  <button onClick={() => setEditingRole(r)} className="p-2 text-primary hover:bg-red-50 rounded-lg transition-colors"><Edit size={18} /></button>
                   {r.name !== 'admin' && (
                     <button onClick={() => handleDeleteRole(r.name)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18} /></button>
                   )}
@@ -2047,23 +2066,23 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
             >
               <form onSubmit={handleSaveUser} className="p-8 space-y-6">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-xl font-bold text-gray-800">{editingUser.id ? 'Editar Usuário' : 'Novo Usuário'}</h3>
-                  <button type="button" onClick={() => setEditingUser(null)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+                  <h3 className="text-xl font-bold text-slate-800">{editingUser.id ? 'Editar Usuário' : 'Novo Usuário'}</h3>
+                  <button type="button" onClick={() => setEditingUser(null)} className="text-slate-400 hover:text-gray-600"><X size={24} /></button>
                 </div>
 
                 <div className="space-y-4">
                   <div>
-                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Nome de Exibição</label>
-                    <input type="text" value={editingUser.displayName} onChange={e => setEditingUser({...editingUser, displayName: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none" required />
+                    <label className="text-xs font-bold text-slate-400 uppercase mb-2 block">Nome de Exibição</label>
+                    <input type="text" value={editingUser.displayName} onChange={e => setEditingUser({...editingUser, displayName: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:border-primary outline-none" required />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Usuário (Login)</label>
-                      <input type="text" value={editingUser.username} onChange={e => setEditingUser({...editingUser, username: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none" required />
+                      <label className="text-xs font-bold text-slate-400 uppercase mb-2 block">Usuário (Login)</label>
+                      <input type="text" value={editingUser.username} onChange={e => setEditingUser({...editingUser, username: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:border-primary outline-none" required />
                     </div>
                     <div>
-                      <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Permissão (Role)</label>
-                      <select value={editingUser.role} onChange={e => setEditingUser({...editingUser, role: e.target.value as any})} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none">
+                      <label className="text-xs font-bold text-slate-400 uppercase mb-2 block">Permissão (Role)</label>
+                      <select value={editingUser.role} onChange={e => setEditingUser({...editingUser, role: e.target.value as any})} className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:border-primary outline-none">
                         {roles.map(r => (
                           <option key={r.name} value={r.name}>{r.name}</option>
                         ))}
@@ -2071,16 +2090,16 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
                     </div>
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">E-mail</label>
-                    <input type="email" value={editingUser.email} onChange={e => setEditingUser({...editingUser, email: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none" required />
+                    <label className="text-xs font-bold text-slate-400 uppercase mb-2 block">E-mail</label>
+                    <input type="email" value={editingUser.email} onChange={e => setEditingUser({...editingUser, email: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:border-primary outline-none" required />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">{editingUser.id ? 'Nova Senha (deixe em branco para manter)' : 'Senha'}</label>
-                    <input type="password" value={editingUser.password || ''} onChange={e => setEditingUser({...editingUser, password: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none" required={!editingUser.id} />
+                    <label className="text-xs font-bold text-slate-400 uppercase mb-2 block">{editingUser.id ? 'Nova Senha (deixe em branco para manter)' : 'Senha'}</label>
+                    <input type="password" value={editingUser.password || ''} onChange={e => setEditingUser({...editingUser, password: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:border-primary outline-none" required={!editingUser.id} />
                   </div>
                 </div>
 
-                <button type="submit" className="w-full py-4 bg-[#c8323c] text-white rounded-xl font-bold shadow-lg shadow-red-900/20 hover:bg-[#b02a33] transition-all flex items-center justify-center gap-2">
+                <button type="submit" className="w-full py-4 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:bg-red-700 transition-all flex items-center justify-center gap-2">
                   <Save size={20} />
                   <span>Salvar Usuário</span>
                 </button>
@@ -2102,28 +2121,28 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
             >
               <form onSubmit={handleSaveRole} className="p-8 space-y-6">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-xl font-bold text-gray-800">{roles.find(r => r.name === editingRole.name) ? 'Editar Perfil' : 'Novo Perfil'}</h3>
-                  <button type="button" onClick={() => setEditingRole(null)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+                  <h3 className="text-xl font-bold text-slate-800">{roles.find(r => r.name === editingRole.name) ? 'Editar Perfil' : 'Novo Perfil'}</h3>
+                  <button type="button" onClick={() => setEditingRole(null)} className="text-slate-400 hover:text-gray-600"><X size={24} /></button>
                 </div>
 
                 <div className="space-y-6">
                   <div>
-                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Nome do Perfil</label>
+                    <label className="text-xs font-bold text-slate-400 uppercase mb-2 block">Nome do Perfil</label>
                     <input 
                       type="text" 
                       value={editingRole.name} 
                       onChange={e => setEditingRole({...editingRole, name: e.target.value})} 
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none" 
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:border-primary outline-none" 
                       required 
                       disabled={!!roles.find(r => r.name === editingRole.name)} // Disable if editing existing
                     />
                   </div>
                   
                   <div>
-                    <label className="text-xs font-bold text-gray-400 uppercase mb-4 block">Permissões de Acesso</label>
+                    <label className="text-xs font-bold text-slate-400 uppercase mb-4 block">Permissões de Acesso</label>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {Object.keys(editingRole.permissions || {}).map((permKey) => (
-                        <label key={permKey} className="flex items-center gap-3 p-3 border border-gray-100 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
+                        <label key={permKey} className="flex items-center gap-3 p-3 border border-slate-100 rounded-xl cursor-pointer hover:bg-slate-50 transition-colors">
                           <input 
                             type="checkbox" 
                             checked={editingRole.permissions?.[permKey as keyof Permissions] || false}
@@ -2134,16 +2153,16 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
                                 [permKey]: e.target.checked
                               } as Permissions
                             })}
-                            className="w-5 h-5 rounded border-gray-300 text-[#c8323c] focus:ring-[#c8323c]"
+                            className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-[#c8323c]"
                           />
-                          <span className="font-medium text-gray-700 capitalize">{permKey}</span>
+                          <span className="font-medium text-slate-700 capitalize">{permKey}</span>
                         </label>
                       ))}
                     </div>
                   </div>
                 </div>
 
-                <button type="submit" className="w-full py-4 bg-[#c8323c] text-white rounded-xl font-bold shadow-lg shadow-red-900/20 hover:bg-[#b02a33] transition-all flex items-center justify-center gap-2">
+                <button type="submit" className="w-full py-4 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:bg-red-700 transition-all flex items-center justify-center gap-2">
                   <Save size={20} />
                   <span>Salvar Perfil</span>
                 </button>
@@ -2165,47 +2184,47 @@ function AdminPanel({ user, shortcuts, news, documents, articles, events, users,
             >
               <form onSubmit={handleSaveExtension} className="p-8 space-y-6">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-xl font-bold text-gray-800">{editingExtension.id ? 'Editar Ramal' : 'Novo Ramal'}</h3>
-                  <button type="button" onClick={() => setEditingExtension(null)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+                  <h3 className="text-xl font-bold text-slate-800">{editingExtension.id ? 'Editar Ramal' : 'Novo Ramal'}</h3>
+                  <button type="button" onClick={() => setEditingExtension(null)} className="text-slate-400 hover:text-gray-600"><X size={24} /></button>
                 </div>
 
                 <div className="space-y-4">
                   <div>
-                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Nome / Setor</label>
+                    <label className="text-xs font-bold text-slate-400 uppercase mb-2 block">Nome / Setor</label>
                     <input 
                       type="text" 
                       value={editingExtension.name} 
                       onChange={e => setEditingExtension({...editingExtension, name: e.target.value})} 
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none" 
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:border-primary outline-none" 
                       placeholder="Ex: Recepção Central"
                       required 
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Departamento</label>
+                    <label className="text-xs font-bold text-slate-400 uppercase mb-2 block">Departamento</label>
                     <input 
                       type="text" 
                       value={editingExtension.department} 
                       onChange={e => setEditingExtension({...editingExtension, department: e.target.value})} 
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none" 
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:border-primary outline-none" 
                       placeholder="Ex: ATENDIMENTO"
                       required 
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Número do Ramal</label>
+                    <label className="text-xs font-bold text-slate-400 uppercase mb-2 block">Número do Ramal</label>
                     <input 
                       type="text" 
                       value={editingExtension.number} 
                       onChange={e => setEditingExtension({...editingExtension, number: e.target.value})} 
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-[#c8323c] outline-none" 
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:border-primary outline-none" 
                       placeholder="Ex: 2001"
                       required 
                     />
                   </div>
                 </div>
 
-                <button type="submit" className="w-full py-4 bg-[#c8323c] text-white rounded-xl font-bold shadow-lg shadow-red-900/20 hover:bg-[#b02a33] transition-all flex items-center justify-center gap-2">
+                <button type="submit" className="w-full py-4 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:bg-red-700 transition-all flex items-center justify-center gap-2">
                   <Save size={20} />
                   <span>Salvar Ramal</span>
                 </button>

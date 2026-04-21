@@ -52,7 +52,8 @@ export interface NewsItem {
 export interface SGQDocument {
   id: string;
   title: string;
-  category: 'MANUAL' | 'POP' | 'INSTRUÇÃO' | 'FORMULÁRIO';
+  code: string;
+  category: 'MANUAL' | 'POP' | 'INSTRUÇÃO' | 'FORMULÁRIO' | string;
   version: string;
   url: string;
   date: string;
